@@ -2,6 +2,7 @@
 # pylint: disable=too-many-nested-blocks,too-many-branches
 # pylint: disable=too-many-return-statements,too-many-statements
 """Context manager for agents with compaction support."""
+import asyncio
 import logging
 import os
 import sys
@@ -523,12 +524,15 @@ class LightContextManager(BaseContextManager):
             f"user_message={user_message[:500]}...",
         )
 
-        compact_msg: Msg = await agent.reply(
-            Msg(
-                name="compactor",
-                role="user",
-                content=user_message,
+        compact_msg: Msg = await asyncio.wait_for(
+            agent.reply(
+                Msg(
+                    name="compactor",
+                    role="user",
+                    content=user_message,
+                ),
             ),
+            timeout=120,
         )
 
         history_compact: str = compact_msg.get_text_content() or ""
