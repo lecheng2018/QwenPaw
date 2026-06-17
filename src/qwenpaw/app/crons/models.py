@@ -148,6 +148,13 @@ class DispatchSpec(BaseModel):
     channel: str = Field(default=DEFAULT_CHANNEL)
     target: DispatchTarget
     mode: Literal["stream", "final"] = Field(default="stream")
+    silent: bool = Field(
+        default=False,
+        description=(
+            "If True, suppress real-time stream push to the main session. "
+            "Only the final result is delivered after completion."
+        ),
+    )
     meta: Dict[str, Any] = Field(default_factory=dict)
 
 

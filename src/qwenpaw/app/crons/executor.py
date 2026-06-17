@@ -136,9 +136,18 @@ class CronExecutor:
             },
         )
 
+        silent = job.dispatch.silent
+        final_text: str | None = None
+
         async def _run() -> None:
-            nonlocal delivery_error
+            nonlocal delivery_error, final_text
             async for event in self._runner.stream_query(req):
+                # In silent mode, skip real-time push to main session.
+                if silent:
+                    # Still capture the final text for delivery after loop.
+                    if event.get("type") == "final":
+                        final_text = event.get("text") or ""
+                    continue
                 try:
                     await self._channel_manager.send_event(
                         channel=target_channel,
@@ -163,6 +172,25 @@ class CronExecutor:
                 _run(),
                 timeout=job.runtime.timeout_seconds,
             )
+            # In silent mode, deliver the final result as a single message.
+            if silent and final_text:
+                try:
+                    await self._channel_manager.send_text(
+                        channel=target_channel,
+                        user_id=target_user_id,
+                        session_id=target_session_id,
+                        text=f"✅ [{job.name}] completed\n\n{final_text}",
+                        meta=dispatch_meta,
+                    )
+                except Exception as e:  # pylint: disable=broad-except
+                    if delivery_error is None:
+                        delivery_error = repr(e)
+                        logger.warning(
+                            "cron silent final delivery failed: "
+                            "job_id=%s error=%s",
+                            job.id,
+                            delivery_error,
+                        )
             await append_trace_from_session_delta(
                 run_id=run_id,
                 runner=self._runner,
