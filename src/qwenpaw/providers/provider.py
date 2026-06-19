@@ -61,6 +61,12 @@ class ModelInfo(BaseModel):
         description="Per-model generation parameters that override "
         "provider-level generate_kwargs.",
     )
+    sort_order: int = Field(
+        default=0,
+        ge=0,
+        description="Display order of the model within the provider. "
+        "Lower values are shown first.",
+    )
 
 
 class ExtendedModelInfo(ModelInfo):
@@ -224,6 +230,12 @@ class Provider(ProviderInfo, ABC):
             for model in self.models + self.extra_models
         ):
             return False, f"Model '{model_info.id}' already exists"
+        # Place newly added models at the end of the visible list.
+        max_order = max(
+            (m.sort_order for m in self.models + self.extra_models),
+            default=-1,
+        )
+        model_info.sort_order = max_order + 1
         if target == "extra_models":
             self.extra_models.append(model_info)
         elif target == "models":
@@ -245,6 +257,18 @@ class Provider(ProviderInfo, ABC):
             if model.id.strip() != model_id
         ]
         return True, ""
+
+    def reorder_models(self, ordered_model_ids: List[str]) -> None:
+        """Reorder all models by assigning sort_order based on the given order.
+
+        Models not included in ``ordered_model_ids`` keep their current
+        ``sort_order``. IDs that do not belong to this provider are ignored.
+        """
+        all_models = {m.id.strip(): m for m in self.models + self.extra_models}
+        for index, model_id in enumerate(ordered_model_ids):
+            model = all_models.get(model_id.strip())
+            if model is not None:
+                model.sort_order = index
 
     def update_config(self, config: Dict) -> None:
         """Update provider configuration with the given dictionary."""
@@ -433,14 +457,30 @@ class Provider(ProviderInfo, ABC):
         # class-identity mismatches when the same module is loaded
         # via two different import paths (e.g. PYTHONPATH + pip install).
         meta = self.meta or {}
+        # Preserve a stable order: sort by the explicit sort_order first,
+        # then fall back to the original array position.
+        sorted_models = [
+            m
+            for _, m in sorted(
+                enumerate(self.models),
+                key=lambda item: (item[1].sort_order, item[0]),
+            )
+        ]
+        sorted_extra_models = [
+            m
+            for _, m in sorted(
+                enumerate(self.extra_models),
+                key=lambda item: (item[1].sort_order, item[0]),
+            )
+        ]
         return ProviderInfo(
             id=self.id,
             name=self.name,
             base_url=self.base_url,
             api_key=api_key,
             chat_model=self.chat_model,
-            models=[m.model_dump() for m in self.models],
-            extra_models=[m.model_dump() for m in self.extra_models],
+            models=[m.model_dump() for m in sorted_models],
+            extra_models=[m.model_dump() for m in sorted_extra_models],
             api_key_prefix=self.api_key_prefix,
             is_local=self.is_local,
             is_custom=self.is_custom,

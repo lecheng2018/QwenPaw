@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { SaveOutlined } from "@ant-design/icons";
 import { Select, Button } from "@agentscope-ai/design";
 import type { ModelSlotRequest } from "../../../../../api/types";
+import { getProviderModels } from "../../../../../api/types";
 import api from "../../../../../api";
 import { useTranslation } from "react-i18next";
 import { useAppMessage } from "../../../../../hooks/useAppMessage";
@@ -70,10 +71,7 @@ export const ModelsSection = React.memo(function ModelsSection({
   }, [currentSlot?.provider_id, currentSlot?.model]);
 
   const chosenProvider = providers.find((p) => p.id === selectedProviderId);
-  const modelOptions = [
-    ...(chosenProvider?.models ?? []),
-    ...(chosenProvider?.extra_models ?? []),
-  ];
+  const modelOptions = getProviderModels(chosenProvider);
   const hasModels = modelOptions.length > 0;
 
   const handleProviderChange = (pid: string) => {
@@ -91,10 +89,9 @@ export const ModelsSection = React.memo(function ModelsSection({
     if (!selectedProviderId || !selectedModel) return;
 
     const selectedProvider = providers.find((p) => p.id === selectedProviderId);
-    const selectedModelInfo = [
-      ...(selectedProvider?.models ?? []),
-      ...(selectedProvider?.extra_models ?? []),
-    ].find((model) => model.id === selectedModel);
+    const selectedModelInfo = getProviderModels(selectedProvider).find(
+      (model) => model.id === selectedModel,
+    );
 
     if (selectedProvider && selectedModelInfo) {
       const confirmed = await confirmFreeModelSwitch({

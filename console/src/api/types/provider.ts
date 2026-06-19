@@ -9,6 +9,24 @@ export interface ModelInfo {
   max_tokens: number;
   max_input_length: number;
   generate_kwargs: Record<string, unknown>;
+  /** Display order within the provider. Lower values are shown first. */
+  sort_order?: number;
+}
+
+/** Return all models of a provider sorted by the configured display order. */
+export function getProviderModels<
+  T extends { id: string; name: string; sort_order?: number },
+>(provider?: { models?: T[]; extra_models?: T[] }): T[] {
+  if (!provider) return [];
+  const all = [
+    ...(provider.models ?? []),
+    ...(provider.extra_models ?? []),
+  ];
+  return all.sort((a, b) => {
+    const orderA = a.sort_order ?? 0;
+    const orderB = b.sort_order ?? 0;
+    return orderA - orderB;
+  });
 }
 
 export interface ProviderInfo {
@@ -110,6 +128,10 @@ export interface AddModelRequest {
   supports_image?: boolean | null;
   supports_video?: boolean | null;
   probe_source?: string | null;
+}
+
+export interface ReorderModelsRequest {
+  ordered_model_ids: string[];
 }
 
 export interface ModelConfigRequest {
