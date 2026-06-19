@@ -44,12 +44,22 @@ interface ChatActionGroupProps {
   planEnabled?: boolean;
   isWideMode?: boolean;
   onToggleWideMode?: () => void;
+  /**
+   * Optional external controller for the chat history drawer.
+   * When provided, callers can drive the drawer from outside (e.g. from a
+   * pinned full-mode panel host). When not provided, the component falls
+   * back to its internal state.
+   */
+  onToggleHistory?: () => void;
+  historyOpen?: boolean;
 }
 
 const ChatActionGroup: React.FC<ChatActionGroupProps> = ({
   planEnabled = false,
   isWideMode = false,
   onToggleWideMode,
+  onToggleHistory,
+  historyOpen: historyOpenProp,
 }) => {
   const { t } = useTranslation();
 
@@ -61,8 +71,24 @@ const ChatActionGroup: React.FC<ChatActionGroupProps> = ({
     }
   });
 
-  // If pinned, auto-open drawer on mount
-  const [historyOpen, setHistoryOpen] = useState(historyPinned);
+  // If pinned, auto-open drawer on mount. Otherwise honour the external
+  // `historyOpen` prop when the parent provides one.
+  const [historyOpenInternal, setHistoryOpenInternal] = useState(
+    historyOpenProp ?? historyPinned,
+  );
+  const isHistoryControlled = historyOpenProp !== undefined;
+  const historyOpen = isHistoryControlled
+    ? historyOpenProp
+    : historyOpenInternal;
+  const setHistoryOpen = (open: boolean) => {
+    if (isHistoryControlled) {
+      // Parent drives the open state; if it also wants notifications when
+      // we'd toggle, surface it via onToggleHistory below.
+      if (open !== historyOpenProp) onToggleHistory?.();
+    } else {
+      setHistoryOpenInternal(open);
+    }
+  };
 
   const handlePinChange = (pinned: boolean) => {
     setHistoryPinned(pinned);
