@@ -1299,7 +1299,12 @@
     "selectAllProviders": "すべて選択",
     "clearProviderSelection": "すべて解除",
     "noMatchingProviders": "一致するプロバイダーがありません",
-    "filterFreeOnly": "無料モデルのみ"
+    "filterFreeOnly": "無料モデルのみ",
+    "moveUp": "Move Up",
+    "moveDown": "Move Down",
+    "dragToReorder": "Drag to reorder",
+    "modelOrderSaved": "Model order saved",
+    "modelOrderSaveFailed": "Failed to save model order"
   },
   "agentConfig": {
     "title": "設定",
