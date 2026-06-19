@@ -895,6 +895,7 @@
     "saveSuccess": "セッションを保存しました",
     "saveFailed": "セッションの保存に失敗しました",
     "batchDeleteButton": "一括削除",
+    "filterTitle": "タイトルで絞り込み",
     "filterUserId": "ユーザーIDで絞り込み",
     "filterChannel": "チャンネルで絞り込み",
     "allChannels": "すべてのチャンネル",
@@ -1701,7 +1702,24 @@
       "unpin": "ピン留め解除",
       "delete": "削除"
     },
-    "conversationHistory": "会話履歴",
+    "queue": {
+      "title": "メッセージキュー",
+      "paused": "一時停止中",
+      "sendFailed": "送信失敗",
+      "resume": "キューを再開",
+      "pause": "キューを一時停止",
+      "clear": "キューをクリア",
+      "dragSort": "ドラッグで並べ替え",
+      "edit": "編集",
+      "retry": "再試行",
+      "skip": "スキップ",
+      "interruptAndSend": "中断して送信",
+      "delete": "削除",
+      "file": "ファイル",
+      "noChatWarning": "キューを使用する前に、まずメッセージを送信して会話を作成してください",
+      "queueFull": "キューが満杯です（最大 {{max}} 件）。メッセージを送信または削除してください",
+      "otherTabOwner": "この会話は別のタブから送信中です。このタブでは入力をキューに追加することのみ可能です。"
+    },
     "group": {
       "pinned": "ピン留め",
       "today": "今日",
@@ -1713,7 +1731,8 @@
       "searchConversations": "会話を検索…",
       "noConversations": "会話なし",
       "loadingConversations": "読み込み中…"
-    }
+    },
+    "conversationHistory": "会話履歴"
   },
   "security": {
     "parent": "設定",

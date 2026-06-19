@@ -360,19 +360,42 @@ const resolveRealId = (
 
 const STORAGE_PREFIX = "qwenpaw_pending_user_msg_";
 
-function savePendingUserMessage(sessionId: string, text: string): void {
+/** Shape stored in sessionStorage. Backward compat: old format was plain text. */
+interface PendingUserMsg {
+  text: string;
+  /** Full content array (stored-name format) for rebuilding the user card
+   *  with attachments. When absent, only text is displayed. */
+  content?: Array<{ type: string; [key: string]: unknown }>;
+}
+
+function savePendingUserMessage(
+  sessionId: string,
+  data: string | PendingUserMsg,
+): void {
   try {
-    sessionStorage.setItem(`${STORAGE_PREFIX}${sessionId}`, text);
+    const val = typeof data === "string" ? data : JSON.stringify(data);
+    sessionStorage.setItem(`${STORAGE_PREFIX}${sessionId}`, val);
   } catch {
     /* quota exceeded – ignore */
   }
 }
 
-function loadPendingUserMessage(sessionId: string): string {
+function loadPendingUserMessage(sessionId: string): PendingUserMsg | null {
   try {
-    return sessionStorage.getItem(`${STORAGE_PREFIX}${sessionId}`) || "";
+    const raw = sessionStorage.getItem(`${STORAGE_PREFIX}${sessionId}`);
+    if (!raw) return null;
+    // Try parsing as JSON (new format with content array)
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && "text" in parsed) {
+        return parsed as PendingUserMsg;
+      }
+    } catch {
+      /* not JSON — legacy plain-text format */
+    }
+    return { text: raw };
   } catch {
-    return "";
+    return null;
   }
 }
 
@@ -484,10 +507,22 @@ class SessionApi implements IAgentScopeRuntimeWebUISessionAPI {
    * Cache the latest user message for a chat so it can be patched into
    * history during reconnect (the backend only persists it after generation
    * completes). Persisted to sessionStorage so it survives page refresh.
+   *
+   * @param content  Optional full content array (in stored-name format)
+   *                 including images/files. When provided, patchLastUserMessage
+   *                 will reconstruct the user card with attachments.
    */
-  setLastUserMessage(sessionId: string, text: string): void {
+  setLastUserMessage(
+    sessionId: string,
+    text: string,
+    content?: Array<{ type: string; [key: string]: unknown }>,
+  ): void {
     if (!sessionId || !text) return;
-    savePendingUserMessage(sessionId, text);
+    if (content && content.length > 0) {
+      savePendingUserMessage(sessionId, { text, content });
+    } else {
+      savePendingUserMessage(sessionId, text);
+    }
   }
 
   /**
@@ -543,8 +578,8 @@ class SessionApi implements IAgentScopeRuntimeWebUISessionAPI {
   /**
    * When reconnecting to a running conversation, the backend history may not
    * include the latest user message (it's only persisted after generation
-   * completes). If generating, look up the cached text from sessionStorage
-   * and patch it into the message list.
+   * completes). If generating, look up the cached data from sessionStorage
+   * and patch it into the message list (including any attachments).
    *
    * When not generating the conversation is done — clear the cached entry.
    */
@@ -558,8 +593,14 @@ class SessionApi implements IAgentScopeRuntimeWebUISessionAPI {
       return;
     }
 
-    const cachedText = loadPendingUserMessage(backendSessionId);
-    if (!cachedText) return;
+    const cached = loadPendingUserMessage(backendSessionId);
+    if (!cached || !cached.text) return;
+
+    // Use the full content array (with images/files) when available;
+    // fall back to text-only for legacy entries.
+    const msgContent: unknown = cached.content ?? [
+      { type: "text", text: cached.text },
+    ];
 
     const lastMsg = messages[messages.length - 1];
     if (lastMsg?.role === ROLE_USER) {
@@ -568,14 +609,14 @@ class SessionApi implements IAgentScopeRuntimeWebUISessionAPI {
       );
       if (!text) {
         lastMsg.cards = buildUserCard({
-          content: [{ type: "text", text: cachedText }],
+          content: msgContent,
           role: ROLE_USER,
         } as Message).cards;
       }
     } else {
       messages.push(
         buildUserCard({
-          content: [{ type: "text", text: cachedText }],
+          content: msgContent,
           role: ROLE_USER,
         } as Message),
       );
@@ -621,6 +662,19 @@ class SessionApi implements IAgentScopeRuntimeWebUISessionAPI {
       | ExtendedSession
       | undefined;
     return s?.realId ?? null;
+  }
+
+  /**
+   * Returns the backend session_id field for a session identified by id.
+   * This is what should be sent in POST body as `session_id`.
+   * Falls back to the id itself when not found (locally-created sessions
+   * have id === sessionId).
+   */
+  getBackendSessionId(id: string): string {
+    const s = this.sessionList.find((x) => x.id === id) as
+      | ExtendedSession
+      | undefined;
+    return s?.sessionId || id;
   }
 
   /** Apply listChats to sessionList; merge realId and generating by session_id. */

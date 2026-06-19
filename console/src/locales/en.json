@@ -1206,6 +1206,7 @@
     "saveSuccess": "Session saved successfully",
     "saveFailed": "Failed to save session",
     "batchDeleteButton": "Batch Delete",
+    "filterTitle": "Filter by Title",
     "filterUserId": "Filter by User ID",
     "filterChannel": "Filter by Channel",
     "allChannels": "All Channels",
@@ -2043,6 +2044,24 @@
       "pin": "Pin",
       "unpin": "Unpin",
       "delete": "Delete"
+    },
+    "queue": {
+      "title": "Message Queue",
+      "paused": "Paused",
+      "sendFailed": "Send failed",
+      "resume": "Resume queue",
+      "pause": "Pause queue",
+      "clear": "Clear queue",
+      "dragSort": "Drag to reorder",
+      "edit": "Edit",
+      "retry": "Retry",
+      "skip": "Skip",
+      "interruptAndSend": "Interrupt & send",
+      "delete": "Delete",
+      "file": "File",
+      "noChatWarning": "Please send a message first to create a conversation before using the queue",
+      "queueFull": "Queue is full (max {{max}} items), please send or remove some messages first",
+      "otherTabOwner": "This conversation is being sent from another tab. This tab can only add inputs to the queue; all send operations are handled by the other tab."
     },
     "group": {
       "pinned": "Pinned",
