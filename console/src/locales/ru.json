@@ -1314,7 +1314,12 @@
     "modalityFile": "Файл",
     "modalityText": "Только текст",
     "perMillionIn": "/1M вх.",
-    "perMillionOut": "/1M исх."
+    "perMillionOut": "/1M исх.",
+    "moveUp": "Move Up",
+    "moveDown": "Move Down",
+    "dragToReorder": "Drag to reorder",
+    "modelOrderSaved": "Model order saved",
+    "modelOrderSaveFailed": "Failed to save model order"
   },
   "agentConfig": {
     "title": "Конфигурация",
