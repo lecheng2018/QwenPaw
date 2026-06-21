@@ -732,3 +732,103 @@
     padding-bottom: 16px;
   }
 }
+
+/* ─── Mobile responsive ─────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .pageHeader {
+    padding: 12px 16px;
+  }
+
+  .breadcrumbCurrent {
+    font-size: 16px;
+  }
+
+  .content {
+    padding: 0 12px;
+  }
+
+  .mainTabs {
+    :global(.qwenpaw-tabs-tab) {
+      padding: 8px 2px;
+      font-size: 13px;
+    }
+
+    :global(.qwenpaw-tabs-tab-active .qwenpaw-tabs-tab-btn) {
+      font-weight: 600;
+    }
+  }
+
+  .tabDescription {
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+
+  .toolGuardRow {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .formCard {
+    margin-bottom: 12px;
+  }
+
+  .sectionHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 0;
+    margin-bottom: 12px;
+  }
+
+  .sectionTitle {
+    font-size: 15px;
+  }
+
+  .shellEvasionGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .skillScannerConfig {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .skillScannerConfigItem {
+    border-left: none !important;
+    padding-right: 0 !important;
+  }
+
+  .skillScannerConfigItem + .skillScannerConfigItem {
+    border-left: none !important;
+  }
+
+  .footerButtons {
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+
+  .footerButtons :global(.ant-btn) {
+    width: 100%;
+  }
+
+  .tableCard {
+    margin-bottom: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tableCard :global(.ant-table) {
+    min-width: 600px;
+  }
+
+  .tableCard :global(.ant-table-thead > tr > th),
+  .tableCard :global(.ant-table-tbody > tr > td) {
+    padding: 10px 8px !important;
+    font-size: 13px;
+  }
+
+  .sectionConfigureContainer {
+    padding-bottom: 16px;
+  }
+}
