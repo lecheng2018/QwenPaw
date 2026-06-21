@@ -68,6 +68,8 @@ export default function ModelSelector() {
 
   const [showMoreFree, setShowMoreFree] = useState(false);
   const moreContentRef = useRef<HTMLDivElement>(null);
+  const triggerNameRef = useRef<HTMLSpanElement>(null);
+  const [shouldMarquee, setShouldMarquee] = useState(false);
   const [expandedModels, setExpandedModels] = useState<Record<string, number>>(
     {},
   );
@@ -233,6 +235,25 @@ export default function ModelSelector() {
   })();
 
   const showActiveProviderIcon = Boolean(activeProviderId);
+
+  // Detect text overflow for marquee effect
+  useEffect(() => {
+    const el = triggerNameRef.current;
+    if (!el) return;
+
+    const checkOverflow = () => {
+      setShouldMarquee(el.scrollWidth > el.clientWidth);
+    };
+
+    checkOverflow();
+
+    const resizeObserver = new ResizeObserver(checkOverflow);
+    resizeObserver.observe(el);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [activeModelName, open]);
 
   const handleOpenChange = useCallback(
     async (next: boolean) => {
@@ -700,7 +721,18 @@ export default function ModelSelector() {
             {showActiveProviderIcon && activeProviderId && (
               <ProviderIcon providerId={activeProviderId} size={16} />
             )}
-            <span className={styles.triggerName}>{activeModelName}</span>
+            <span
+              className={styles.triggerName}
+              ref={triggerNameRef}
+            >
+              <span
+                className={
+                  shouldMarquee ? styles.marqueeText : undefined
+                }
+              >
+                {activeModelName}
+              </span>
+            </span>
             {open ? <UpOutlined /> : <DownOutlined />}
           </div>
         </Tooltip>
