@@ -2483,25 +2483,51 @@
 
   /* ── Model list (in modal) ── */
   .modelListItem {
-    flex-direction: column;
-    align-items: stretch;
+    padding: 8px 12px;
     gap: 6px;
-    padding: 10px 12px;
   }
 
   .modelListItemInfo {
     min-width: 0;
+    flex-shrink: 1;
+  }
+
+  .modelListItemName {
+    font-size: 12px;
+  }
+
+  .modelListItemId {
+    font-size: 11px;
   }
 
   .modelListItemActions {
+    flex-shrink: 1;
     margin-left: 0;
-    justify-content: flex-start;
-    gap: 6px;
+    gap: 2px;
+    flex-wrap: wrap;
   }
 
   .modelListItemStatusButton {
-    height: 22px;
-    padding: 0 8px;
+    height: 20px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  .modelListItemActions :global(.ant-btn) {
     font-size: 11px;
+    height: 22px;
+    padding: 0 6px;
+  }
+
+  .modelListItemActions :global(.ant-tag) {
+    font-size: 10px;
+    padding: 0 4px;
+    margin: 0;
+    line-height: 18px;
+  }
+
+  /* Hide drag handle on mobile — HTML5 DnD unsupported on touch */
+  .dragHandle {
+    display: none !important;
   }
 }
