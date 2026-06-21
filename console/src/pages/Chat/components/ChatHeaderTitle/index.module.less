@@ -77,3 +77,64 @@
     color: rgba(255, 255, 255, 0.88);
   }
 }
+
+/* ---- Trigger button ---- */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+  max-width: 260px;
+
+  &:hover {
+    .chatName {
+      color: #ff7f16;
+    }
+    .triggerArrow {
+      color: #ff7f16;
+    }
+  }
+
+  @media (max-width: 768px) {
+    max-width: 140px;
+  }
+
+  @media (max-width: 480px) {
+    max-width: 100px;
+  }
+}
+
+.triggerArrow {
+  font-size: 12px;
+  color: #999;
+  transition: transform 0.2s, color 0.15s;
+  flex-shrink: 0;
+
+  &.triggerArrowOpen {
+    transform: rotate(180deg);
+    color: #ff7f16;
+  }
+}
+
+/* ---- Dropdown menu items ---- */
+.menuItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 200px;
+}
+
+.menuItemName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.menuItemActive {
+  color: #ff7f16;
+  font-size: 12px;
+  flex-shrink: 0;
+}

@@ -99,7 +99,9 @@ const ChatActionGroup: React.FC<ChatActionGroupProps> = ({
     moreItems.push({
       key: "plan",
       icon: <PlanIcon />,
-      label: t("plan.title", "Plan"),
+      label: (
+        <div style={{ textAlign: "center" }}>{t("plan.title", "Plan")}</div>
+      ),
       onClick: () => setPlanOpen(true),
     });
   }
@@ -107,7 +109,11 @@ const ChatActionGroup: React.FC<ChatActionGroupProps> = ({
     moreItems.push({
       key: "history",
       icon: <SparkHistoryLine />,
-      label: t("chat.chatHistoryTooltip"),
+      label: (
+        <div style={{ textAlign: "center" }}>
+          {t("chat.chatHistoryTooltip")}
+        </div>
+      ),
       onClick: () => onToggleHistory(),
     });
   }
@@ -115,9 +121,13 @@ const ChatActionGroup: React.FC<ChatActionGroupProps> = ({
     moreItems.push({
       key: "wideMode",
       icon: isWideMode ? <CompressOutlined /> : <ExpandAltOutlined />,
-      label: isWideMode
-        ? t("chat.normalModeTooltip")
-        : t("chat.wideModeTooltip"),
+      label: (
+        <div style={{ textAlign: "center" }}>
+          {isWideMode
+            ? t("chat.normalModeTooltip")
+            : t("chat.wideModeTooltip")}
+        </div>
+      ),
       onClick: () => onToggleWideMode(),
     });
   }

@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Dropdown } from "antd";
+import { DownOutlined } from "@ant-design/icons";
 import { useChatAnywhereSessionsState } from "@agentscope-ai/chat";
 import { useCodingMode } from "../../../../stores/codingModeStore";
 import styles from "./index.module.less";
@@ -6,10 +8,13 @@ import styles from "./index.module.less";
 const MOBILE_BREAKPOINT_PX = 480;
 
 const ChatHeaderTitle: React.FC = () => {
-  const { sessions, currentSessionId } = useChatAnywhereSessionsState();
+  const { sessions, currentSessionId, setCurrentSessionId } =
+    useChatAnywhereSessionsState();
   const { codingMode } = useCodingMode();
   const currentSession = sessions.find((s) => s.id === currentSessionId);
   const chatName = currentSession?.name || "New Chat";
+
+  const [open, setOpen] = useState(false);
 
   // Detect mobile + whether title overflows. On mobile + overflow, render as
   // a horizontal marquee; otherwise keep the original ellipsis behavior.
@@ -39,11 +44,29 @@ const ChatHeaderTitle: React.FC = () => {
     return () => window.removeEventListener("resize", check);
   }, [chatName, codingMode]);
 
+  const handleSessionClick = (sessionId: string) => {
+    setCurrentSessionId(sessionId);
+    setOpen(false);
+  };
+
+  const menuItems = sessions.map((session) => ({
+    key: session.id,
+    label: (
+      <div className={styles.menuItem}>
+        <span className={styles.menuItemName}>{session.name || "New Chat"}</span>
+        {session.id === currentSessionId && (
+          <span className={styles.menuItemActive}>✓</span>
+        )}
+      </div>
+    ),
+    onClick: () => handleSessionClick(session.id),
+  }));
+
   const className = codingMode
     ? `${styles.chatName} ${styles.chatNameCoding}`
     : styles.chatName;
 
-  return (
+  const titleContent = (
     <span className={className} ref={containerRef}>
       {/* Hidden span used to measure intrinsic text width. */}
       <span
@@ -64,6 +87,25 @@ const ChatHeaderTitle: React.FC = () => {
         chatName
       )}
     </span>
+  );
+
+  if (sessions.length <= 1) {
+    return titleContent;
+  }
+
+  return (
+    <Dropdown
+      menu={{ items: menuItems }}
+      open={open}
+      onOpenChange={setOpen}
+      trigger={["click"]}
+      placement="bottomLeft"
+    >
+      <span className={styles.trigger}>
+        {titleContent}
+        <DownOutlined className={styles.triggerArrow} />
+      </span>
+    </Dropdown>
   );
 };
 
