@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Button, Card, Checkbox, Tooltip } from "@agentscope-ai/design";
 import { useTranslation } from "react-i18next";
 import dayjs from "dayjs";
@@ -31,7 +30,6 @@ export function PoolSkillCard({
   onDelete,
 }: PoolSkillCardProps) {
   const { t } = useTranslation();
-  const [isHover, setIsHover] = useState(false);
   const syncTone = getPoolBuiltinStatusTone(skill.sync_status);
   const isBuiltin = isSkillBuiltin(skill.source);
 
@@ -39,8 +37,6 @@ export function PoolSkillCard({
     <Card
       hoverable
       className={`${styles.skillCard} ${isSelected ? styles.selectedCard : ""}`}
-      onMouseEnter={() => setIsHover(true)}
-      onMouseLeave={() => setIsHover(false)}
       onClick={() => {
         if (batchModeEnabled) {
           onToggleSelect(skill.name);
@@ -126,9 +122,8 @@ export function PoolSkillCard({
         <p className={styles.descriptionText}>{skill.description || "-"}</p>
       </div>
 
-      {/* Footer - only show on hover or batch mode */}
-      {(isHover || batchModeEnabled) && (
-        <div className={styles.cardFooter}>
+      {/* Footer */}
+      <div className={styles.cardFooter}>
           <Button
             className={styles.actionButton}
             disabled={batchModeEnabled}
@@ -151,7 +146,6 @@ export function PoolSkillCard({
             {t("skillPool.delete")}
           </Button>
         </div>
-      )}
     </Card>
   );
 }
