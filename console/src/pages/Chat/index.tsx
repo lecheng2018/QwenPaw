@@ -20,8 +20,7 @@ import { skillApi } from "../../api/modules/skill";
 import { getApiUrl } from "../../api/config";
 import { buildAuthHeaders } from "../../api/authHeaders";
 import { providerApi } from "../../api/modules/provider";
-import type { ProviderInfo, SkillSpec } from "../../api/types";
-import { getProviderModels } from "../../api/types";
+import type { ProviderInfo, ModelInfo, SkillSpec } from "../../api/types";
 import ModelSelector from "./ModelSelector";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useAgentStore } from "../../stores/agentStore";
@@ -665,9 +664,11 @@ function useMultimodalCapabilities(
         updateCapsIfChanged(noCaps);
         return;
       }
-      const model = getProviderModels(provider).find(
-        (m) => m.id === activeModelId,
-      );
+      const allModels: ModelInfo[] = [
+        ...(provider.models ?? []),
+        ...(provider.extra_models ?? []),
+      ];
+      const model = allModels.find((m) => m.id === activeModelId);
       updateCapsIfChanged({
         supportsMultimodal: model?.supports_multimodal ?? false,
         supportsImage: model?.supports_image ?? false,

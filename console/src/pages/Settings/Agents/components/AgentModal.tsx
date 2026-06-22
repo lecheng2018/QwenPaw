@@ -14,7 +14,6 @@ import { CheckOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import type { AgentSummary } from "@/api/types/agents";
 import type { ProviderInfo } from "@/api/types/provider";
-import { getProviderModels } from "@/api/types/provider";
 import { getAgentDisplayName } from "@/utils/agentDisplayName";
 import type { PoolSkillSpec } from "@/api/types/skill";
 import { skillApi } from "@/api/modules/skill";
@@ -75,7 +74,7 @@ export function AgentModal({
       .map((p) => ({
         id: p.id,
         name: p.name,
-        models: getProviderModels(p),
+        models: [...(p.models ?? []), ...(p.extra_models ?? [])],
       }));
   }, [providers]);
 
