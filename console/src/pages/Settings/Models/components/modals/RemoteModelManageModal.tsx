@@ -22,6 +22,7 @@ import {
   EyeOutlined,
   SettingOutlined,
   DownOutlined,
+  UpOutlined,
   SearchOutlined,
   ExperimentOutlined,
   AppstoreOutlined,
@@ -31,6 +32,7 @@ import {
   DatabaseOutlined,
   UserOutlined,
   GiftOutlined,
+  HolderOutlined,
 } from "@ant-design/icons";
 import type {
   ProviderInfo,
@@ -38,6 +40,7 @@ import type {
   ModelInfo,
   ExtendedModelInfo,
 } from "../../../../../api/types";
+import { getProviderModels } from "../../../../../api/types";
 
 import api from "../../../../../api";
 import { useTranslation } from "react-i18next";
@@ -380,6 +383,11 @@ export function RemoteModelManageModal({
   const [loadingDiscoveredModels, setLoadingDiscoveredModels] = useState(false);
   const PAGE_SIZE = 30;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<{
+    targetId: string;
+    position: "before" | "after";
+  } | null>(null);
 
   // For custom providers ALL models are deletable.
   // For built-in providers only extra_models are deletable.
@@ -398,10 +406,9 @@ export function RemoteModelManageModal({
       const values = await form.validateFields();
       const id = values.id.trim();
       const name = values.name?.trim() || id;
-      const modelAlreadyExists = [
-        ...(provider.models ?? []),
-        ...(provider.extra_models ?? []),
-      ].some((model) => model.id.trim() === id);
+      const modelAlreadyExists = getProviderModels(provider).some(
+        (model) => model.id.trim() === id,
+      );
 
       if (modelAlreadyExists) {
         message.warning(t("models.modelAlreadyExists", { id }));
@@ -690,17 +697,177 @@ export function RemoteModelManageModal({
     setVisibleCount(PAGE_SIZE);
   }, [deferredSearchQuery]);
 
+  const sortedModels = useMemo(
+    () => getProviderModels(provider),
+    [provider],
+  );
+
+  const isSearchActive = deferredSearchQuery.trim().length > 0;
+
+  const persistOrder = useCallback(
+    async (orderedIds: string[], previousIds: string[]) => {
+      try {
+        setSaving(true);
+        await api.reorderModels(provider.id, {
+          ordered_model_ids: orderedIds,
+        });
+        message.success({
+          content: (
+            <span>
+              {t("models.modelOrderSaved", "模型排序已保存")}
+              <Button
+                type="link"
+                size="small"
+                style={{ paddingLeft: 8 }}
+                onClick={async () => {
+                  try {
+                    setSaving(true);
+                    await api.reorderModels(provider.id, {
+                      ordered_model_ids: previousIds,
+                    });
+                    message.success(
+                      t("models.modelOrderRestored", "已撤销排序"),
+                    );
+                    onSaved();
+                  } catch (error) {
+                    const errMsg =
+                      error instanceof Error
+                        ? error.message
+                        : t(
+                            "models.modelOrderSaveFailed",
+                            "排序保存失败",
+                          );
+                    message.error(errMsg);
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              >
+                {t("models.undo", "撤销")}
+              </Button>
+            </span>
+          ),
+        });
+        onSaved();
+      } catch (error) {
+        const errMsg =
+          error instanceof Error
+            ? error.message
+            : t("models.modelOrderSaveFailed", "排序保存失败");
+        message.error(errMsg);
+      } finally {
+        setSaving(false);
+      }
+    },
+    [provider.id, onSaved, t],
+  );
+
+  const handleModelDragStart = useCallback(
+    (e: React.DragEvent<HTMLElement>, modelId: string) => {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", modelId);
+      setDraggingId(modelId);
+    },
+    [],
+  );
+
+  const handleModelDragOver = useCallback(
+    (e: React.DragEvent<HTMLElement>, targetId: string) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      const rect = e.currentTarget.getBoundingClientRect();
+      const offset = e.clientY - rect.top;
+      const position = offset < rect.height / 2 ? "before" : "after";
+      setDropIndicator((prev) => {
+        if (
+          prev &&
+          prev.targetId === targetId &&
+          prev.position === position
+        ) {
+          return prev;
+        }
+        return { targetId, position };
+      });
+    },
+    [],
+  );
+
+  const handleModelDragLeave = useCallback(
+    (e: React.DragEvent<HTMLElement>) => {
+      const related = e.relatedTarget as Node | null;
+      if (related && e.currentTarget.contains(related)) return;
+      setDropIndicator(null);
+    },
+    [],
+  );
+
+  const handleModelDragEnd = useCallback(() => {
+    setDraggingId(null);
+    setDropIndicator(null);
+  }, []);
+
+  const handleModelDrop = useCallback(
+    async (e: React.DragEvent<HTMLElement>, targetId: string) => {
+      e.preventDefault();
+      const draggedId = e.dataTransfer.getData("text/plain");
+      const indicator = dropIndicator;
+      setDraggingId(null);
+      setDropIndicator(null);
+      if (!draggedId || draggedId === targetId) return;
+      const fromIndex = sortedModels.findIndex((m) => m.id === draggedId);
+      const targetIndex = sortedModels.findIndex((m) => m.id === targetId);
+      if (fromIndex < 0 || targetIndex < 0) return;
+      const reordered = [...sortedModels];
+      const [moved] = reordered.splice(fromIndex, 1);
+      const insertBefore =
+        indicator && indicator.targetId === targetId
+          ? indicator.position === "before"
+          : true;
+      const adjustedTargetIndex =
+        targetIndex > fromIndex ? targetIndex - 1 : targetIndex;
+      const insertIndex = insertBefore
+        ? adjustedTargetIndex
+        : adjustedTargetIndex + 1;
+      reordered.splice(insertIndex, 0, moved);
+      const previousIds = sortedModels.map((m) => m.id);
+      const newIds = reordered.map((m) => m.id);
+      if (previousIds.join("|") === newIds.join("|")) return;
+      await persistOrder(newIds, previousIds);
+    },
+    [sortedModels, dropIndicator, persistOrder],
+  );
+
+  const handleMoveModel = async (index: number, direction: -1 | 1) => {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= sortedModels.length) return;
+    const reordered = [...sortedModels];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(newIndex, 0, moved);
+    const previousIds = sortedModels.map((m) => m.id);
+    const newIds = reordered.map((m) => m.id);
+    await persistOrder(newIds, previousIds);
+  };
+
+  const handleResetOrder = useCallback(async () => {
+    const previousIds = sortedModels.map((m) => m.id);
+    const builtinSorted = [...(provider.models ?? [])].sort((a, b) =>
+      a.id.localeCompare(b.id),
+    );
+    const extraSorted = [...(provider.extra_models ?? [])].sort((a, b) =>
+      a.id.localeCompare(b.id),
+    );
+    const newIds = [...builtinSorted, ...extraSorted].map((m) => m.id);
+    if (previousIds.join("|") === newIds.join("|")) return;
+    await persistOrder(newIds, previousIds);
+  }, [sortedModels, provider.models, provider.extra_models, persistOrder]);
+
   const filteredModels = useMemo(() => {
-    const all_models = [
-      ...(provider.extra_models ?? []),
-      ...(provider.models ?? []),
-    ];
     const q = deferredSearchQuery.trim().toLowerCase();
-    if (!q) return all_models;
-    return all_models.filter(
+    if (!q) return sortedModels;
+    return sortedModels.filter(
       (m) => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q),
     );
-  }, [provider.models, provider.extra_models, deferredSearchQuery]);
+  }, [sortedModels, deferredSearchQuery]);
 
   const colors = tagColors(isDark);
 
@@ -713,13 +880,32 @@ export function RemoteModelManageModal({
       width={800}
       destroyOnHidden
     >
-      <Input
-        placeholder={t("models.searchModelPlaceholder", "搜索模型...")}
-        value={modelSearchQuery}
-        onChange={(e) => setModelSearchQuery(e.target.value)}
-        prefix={<SearchOutlined />}
-        allowClear
-      />
+      <div className={styles.modelListToolbar}>
+        <Input
+          placeholder={t("models.searchModelPlaceholder", "搜索模型...")}
+          value={modelSearchQuery}
+          onChange={(e) => setModelSearchQuery(e.target.value)}
+          prefix={<SearchOutlined />}
+          allowClear
+          style={{ flex: 1 }}
+        />
+        {sortedModels.length > 1 && (
+          <Tooltip
+            title={t(
+              "models.resetOrderTooltip",
+              "按字母顺序重置模型排序",
+            )}
+          >
+            <Button
+              size="small"
+              onClick={handleResetOrder}
+              disabled={saving || isSearchActive}
+            >
+              {t("models.resetOrder", "重置排序")}
+            </Button>
+          </Tooltip>
+        )}
+      </div>
 
       {/* Model list */}
       <div className={styles.modelList}>
@@ -728,11 +914,27 @@ export function RemoteModelManageModal({
         ) : (
           <>
             {filteredModels.slice(0, visibleCount).map((m) => {
+              const sortedIndex = sortedModels.findIndex(
+                (model) => model.id === m.id,
+              );
               const isDeletable = provider.is_custom || extraModelIds.has(m.id);
               const isConfigOpen = configOpenModelId === m.id;
               return (
                 <div key={m.id}>
-                  <div className={styles.modelListItem}>
+                  {dropIndicator?.targetId === m.id &&
+                    dropIndicator.position === "before" && (
+                      <div className={styles.dropIndicator} />
+                    )}
+                  <div
+                    className={styles.modelListItem}
+                    onDragOver={(e) => handleModelDragOver(e, m.id)}
+                    onDragLeave={handleModelDragLeave}
+                    onDrop={(e) => handleModelDrop(e, m.id)}
+                    onDragEnd={handleModelDragEnd}
+                    style={{
+                      opacity: draggingId === m.id ? 0.4 : 1,
+                    }}
+                  >
                     <div className={styles.modelListItemInfo}>
                       <span className={styles.modelListItemName}>{m.name}</span>
                       <span className={styles.modelListItemId}>{m.id}</span>
@@ -807,6 +1009,53 @@ export function RemoteModelManageModal({
                           style={darkBtnStyle}
                         />
                       </Tooltip>
+                      <Tooltip
+                        title={
+                          isSearchActive
+                            ? t(
+                                "models.dragDisabledHint",
+                                "清除搜索后可拖拽排序",
+                              )
+                            : t("models.dragToReorder", "拖拽排序")
+                        }
+                      >
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<HolderOutlined />}
+                          draggable={!isSearchActive}
+                          disabled={isSearchActive || saving}
+                          onDragStart={(e) => handleModelDragStart(e, m.id)}
+                          onDragEnd={handleModelDragEnd}
+                          aria-label={t("models.dragToReorder", "拖拽排序")}
+                          style={darkBtnStyle}
+                          className={styles.dragHandle}
+                        />
+                      </Tooltip>
+                      <Tooltip title={t("models.moveUp", "上移")}>
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<UpOutlined />}
+                          disabled={sortedIndex <= 0 || saving}
+                          onClick={() => handleMoveModel(sortedIndex, -1)}
+                          aria-label={t("models.moveUp", "上移")}
+                          style={darkBtnStyle}
+                        />
+                      </Tooltip>
+                      <Tooltip title={t("models.moveDown", "下移")}>
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<DownOutlined />}
+                          disabled={
+                            sortedIndex >= sortedModels.length - 1 || saving
+                          }
+                          onClick={() => handleMoveModel(sortedIndex, 1)}
+                          aria-label={t("models.moveDown", "下移")}
+                          style={darkBtnStyle}
+                        />
+                      </Tooltip>
                       <Tooltip title={t("models.modelConfigLabel", "模型配置")}>
                         <Button
                           type="text"
@@ -853,6 +1102,10 @@ export function RemoteModelManageModal({
                       />
                     </div>
                   )}
+                  {dropIndicator?.targetId === m.id &&
+                    dropIndicator.position === "after" && (
+                      <div className={styles.dropIndicator} />
+                    )}
                 </div>
               );
             })}

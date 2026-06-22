@@ -1640,6 +1640,30 @@
   box-sizing: border-box;
 }
 
+.dragHandle {
+  cursor: grab;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.dropIndicator {
+  height: 2px;
+  margin: 0 8px;
+  background: #1677ff;
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.18);
+  pointer-events: none;
+}
+
+.modelListToolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
 .modelAddForm {
   margin-top: 12px;
   padding: 16px;

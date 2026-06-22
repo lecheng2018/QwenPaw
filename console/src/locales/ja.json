@@ -1299,7 +1299,17 @@
     "selectAllProviders": "すべて選択",
     "clearProviderSelection": "すべて解除",
     "noMatchingProviders": "一致するプロバイダーがありません",
-    "filterFreeOnly": "無料モデルのみ"
+    "filterFreeOnly": "無料モデルのみ",
+    "moveUp": "Move Up",
+    "moveDown": "Move Down",
+    "dragToReorder": "Drag to reorder",
+    "dragDisabledHint": "Clear search to enable drag-to-reorder",
+    "resetOrder": "Reset Order",
+    "resetOrderTooltip": "Reset model order alphabetically",
+    "modelOrderSaved": "Model order saved",
+    "modelOrderSaveFailed": "Failed to save model order",
+    "modelOrderRestored": "Order restored",
+    "undo": "Undo"
   },
   "agentConfig": {
     "title": "設定",
