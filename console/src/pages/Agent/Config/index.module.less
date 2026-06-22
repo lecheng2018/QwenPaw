@@ -309,4 +309,16 @@
     min-width: 120px;
     max-width: 200px;
   }
+
+  .mainTabs {
+    :global(.qwenpaw-tabs-nav) {
+      overflow-x: auto;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+    }
+    :global(.qwenpaw-tabs-nav-list) {
+      display: inline-flex;
+      white-space: nowrap;
+    }
+  }
 }
