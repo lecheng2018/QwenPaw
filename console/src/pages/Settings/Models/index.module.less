@@ -2383,7 +2383,7 @@
   }
 
   .providersPageHeader {
-    padding: 12px 0;
+    padding: 12px;
   }
 
   // Stack header right-side content vertically on narrow screens
@@ -2395,8 +2395,7 @@
   }
 
   .headerRight {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-wrap: wrap;
     width: 100%;
     gap: 8px;
   }
@@ -2408,36 +2407,22 @@
     overflow: hidden;
   }
 
-  .llmPillValue {
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
   .addProviderBtn {
     margin-right: 0;
   }
 
   .searchRow {
-    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
-    margin: 0;
-    width: 100%;
-    padding: 0;
+    margin: 0 12px;
+    width: auto;
   }
   .searchInput {
-    flex: 1;
     max-width: 100%;
     min-width: 0;
-
-    :global(.ant-input) {
-      min-width: 0;
-    }
   }
   .searchBtn {
-    flex-shrink: 0;
     margin-right: 0;
-    width: 32px;
-    padding: 0;
   }
 
   .tabsNav {
