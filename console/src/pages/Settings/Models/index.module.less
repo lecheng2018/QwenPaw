@@ -1544,6 +1544,20 @@
   }
 }
 
+.dragHandle {
+  display: inline-flex;
+  align-items: center;
+  cursor: grab;
+  color: #999;
+  margin-right: 8px;
+  font-size: 14px;
+  user-select: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
 .modelListItemInfo {
   display: flex;
   flex-direction: column;

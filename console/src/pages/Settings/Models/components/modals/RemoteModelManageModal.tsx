@@ -34,6 +34,7 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   UndoOutlined,
+  HolderOutlined,
 } from "@ant-design/icons";
 import type {
   ProviderInfo,
@@ -387,6 +388,7 @@ export function RemoteModelManageModal({
   const [savedOrderSnapshot, setSavedOrderSnapshot] = useState<string[] | null>(
     null,
   );
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   const [loadingDiscoveredModels, setLoadingDiscoveredModels] = useState(false);
   const PAGE_SIZE = 30;
@@ -806,6 +808,42 @@ export function RemoteModelManageModal({
     message.success(t("models.modelOrderRestored", "排序已恢复"));
   }, [filteredModels, provider.id, message, t]);
 
+  // Drag-and-drop handlers
+  const handleDragStart = useCallback(
+    (e: React.DragEvent, index: number) => {
+      if (!isReordering) return;
+      setDragIndex(index);
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(index));
+    },
+    [isReordering],
+  );
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent, dropIndex: number) => {
+      e.preventDefault();
+      if (dragIndex === null || dragIndex === dropIndex) return;
+      setLocalOrder((prev) => {
+        if (!prev) return prev;
+        const next = [...prev];
+        const [moved] = next.splice(dragIndex, 1);
+        next.splice(dropIndex, 0, moved);
+        return next;
+      });
+      setDragIndex(null);
+    },
+    [dragIndex],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDragIndex(null);
+  }, []);
+
   const colors = tagColors(isDark);
 
   return (
@@ -870,7 +908,22 @@ export function RemoteModelManageModal({
               const isConfigOpen = configOpenModelId === m.id;
               return (
                 <div key={m.id}>
-                  <div className={styles.modelListItem}>
+                  <div
+                    className={styles.modelListItem}
+                    draggable={isReordering}
+                    onDragStart={(e) => handleDragStart(e, idx)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, idx)}
+                    onDragEnd={handleDragEnd}
+                    style={{
+                      opacity: dragIndex === idx ? 0.5 : undefined,
+                    }}
+                  >
+                    {isReordering && (
+                      <span className={styles.dragHandle}>
+                        <HolderOutlined />
+                      </span>
+                    )}
                     <div className={styles.modelListItemInfo}>
                       <span className={styles.modelListItemName}>{m.name}</span>
                       <span className={styles.modelListItemId}>{m.id}</span>
