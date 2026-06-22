@@ -6,6 +6,7 @@ import api from "../../../../../api";
 import { useTranslation } from "react-i18next";
 import { useAppMessage } from "../../../../../hooks/useAppMessage";
 import { confirmFreeModelSwitch } from "@/utils/freeModelSwitchWarning";
+import { getProviderModels } from "../../../../../api/types/provider";
 import styles from "../../index.module.less";
 
 interface ModelsSectionProps {
@@ -70,10 +71,7 @@ export const ModelsSection = React.memo(function ModelsSection({
   }, [currentSlot?.provider_id, currentSlot?.model]);
 
   const chosenProvider = providers.find((p) => p.id === selectedProviderId);
-  const modelOptions = [
-    ...(chosenProvider?.models ?? []),
-    ...(chosenProvider?.extra_models ?? []),
-  ];
+  const modelOptions = getProviderModels(chosenProvider);
   const hasModels = modelOptions.length > 0;
 
   const handleProviderChange = (pid: string) => {
@@ -91,10 +89,9 @@ export const ModelsSection = React.memo(function ModelsSection({
     if (!selectedProviderId || !selectedModel) return;
 
     const selectedProvider = providers.find((p) => p.id === selectedProviderId);
-    const selectedModelInfo = [
-      ...(selectedProvider?.models ?? []),
-      ...(selectedProvider?.extra_models ?? []),
-    ].find((model) => model.id === selectedModel);
+    const selectedModelInfo = getProviderModels(selectedProvider).find(
+      (model) => model.id === selectedModel,
+    );
 
     if (selectedProvider && selectedModelInfo) {
       const confirmed = await confirmFreeModelSwitch({

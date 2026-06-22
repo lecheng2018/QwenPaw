@@ -1640,7 +1640,17 @@
     "modalityFile": "File",
     "modalityText": "Text only",
     "perMillionIn": "/1M in",
-    "perMillionOut": "/1M out"
+    "perMillionOut": "/1M out",
+    "moveUp": "Move Up",
+    "moveDown": "Move Down",
+    "reorder": "Reorder",
+    "done": "Done",
+    "resetOrder": "Reset",
+    "resetOrderTooltip": "Reset model order alphabetically",
+    "modelOrderSaved": "Model order saved",
+    "modelOrderSaveFailed": "Failed to save model order",
+    "modelOrderRestored": "Order restored",
+    "undo": "Undo"
   },
   "agentConfig": {
     "title": "Configuration",

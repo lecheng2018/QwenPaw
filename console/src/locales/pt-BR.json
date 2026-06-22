@@ -1517,7 +1517,17 @@
     "modalityFile": "File",
     "modalityText": "Text only",
     "perMillionIn": "/1M in",
-    "perMillionOut": "/1M out"
+    "perMillionOut": "/1M out",
+    "moveUp": "Move Up",
+    "moveDown": "Move Down",
+    "reorder": "Reorder",
+    "done": "Done",
+    "resetOrder": "Reset",
+    "resetOrderTooltip": "Reset model order alphabetically",
+    "modelOrderSaved": "Model order saved",
+    "modelOrderSaveFailed": "Failed to save model order",
+    "modelOrderRestored": "Order restored",
+    "undo": "Undo"
   },
   "agentConfig": {
     "title": "Configuracao",
@@ -1924,8 +1934,8 @@
       "delete": "Excluir",
       "file": "Arquivo",
       "noChatWarning": "Envie uma mensagem primeiro para criar uma conversa antes de usar a fila",
-      "queueFull": "Fila cheia (m\u00e1x. {{max}} itens). Envie ou remova algumas mensagens primeiro",
-      "otherTabOwner": "Esta conversa est\u00e1 sendo enviada de outra aba. Nesta aba, voc\u00ea s\u00f3 pode adicionar entradas \u00e0 fila."
+      "queueFull": "Fila cheia (máx. {{max}} itens). Envie ou remova algumas mensagens primeiro",
+      "otherTabOwner": "Esta conversa está sendo enviada de outra aba. Nesta aba, você só pode adicionar entradas à fila."
     },
     "group": {
       "pinned": "Fixados",

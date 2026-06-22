@@ -1489,7 +1489,17 @@
     "modalityFile": "文件",
     "modalityText": "仅文本",
     "perMillionIn": "/1M 输入",
-    "perMillionOut": "/1M 输出"
+    "perMillionOut": "/1M 输出",
+    "moveUp": "上移",
+    "moveDown": "下移",
+    "reorder": "排序",
+    "done": "完成",
+    "resetOrder": "重置",
+    "resetOrderTooltip": "按字母顺序重置模型排序",
+    "modelOrderSaved": "排序已保存",
+    "modelOrderSaveFailed": "保存排序失败",
+    "modelOrderRestored": "排序已恢复",
+    "undo": "撤销"
   },
   "agentConfig": {
     "title": "运行配置",
