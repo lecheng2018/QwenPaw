@@ -2373,3 +2373,161 @@
     opacity: 0.8;
   }
 }
+
+// ─── Mobile responsive overrides ─────────────────────────────────────────────
+// Only affects viewports <= 768px; desktop layout is unchanged.
+
+@media (max-width: 768px) {
+  .pageHeader {
+    padding: 12px;
+  }
+
+  .providersPageHeader {
+    padding: 12px;
+  }
+
+  // Stack header right-side content vertically on narrow screens
+  .sectionHeaderRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0 12px;
+  }
+
+  .headerRight {
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .llmPill {
+    font-size: 12px;
+    padding: 4px 10px;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .addProviderBtn {
+    margin-right: 0;
+  }
+
+  .searchRow {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 12px;
+    width: auto;
+  }
+  .searchInput {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .searchBtn {
+    margin-right: 0;
+  }
+
+  .tabsNav {
+    overflow-x: auto;
+    margin: 0 12px 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tabItem {
+    padding: 10px 14px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .providerCards {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .providerGroup {
+    padding: 0 12px;
+  }
+
+  .groupCardGlass {
+    padding: 14px;
+    overflow: hidden;
+  }
+
+  .groupCardHeader {
+    gap: 8px;
+  }
+  .groupCardName {
+    font-size: 15px;
+  }
+
+  .groupCardMono {
+    font-size: 11px;
+    padding: 6px 10px;
+    max-width: 100%;
+  }
+
+  .groupCardActions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .groupCardActBtn {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+
+  .availableGrid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 6px;
+  }
+  .availableItem {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  /* ── Model list (in modal) ── */
+  .modelListItem {
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  .modelListItemInfo {
+    min-width: 0;
+    flex-shrink: 1;
+  }
+
+  .modelListItemName {
+    font-size: 12px;
+  }
+
+  .modelListItemId {
+    font-size: 11px;
+  }
+
+  .modelListItemActions {
+    flex-shrink: 1;
+    margin-left: 0;
+    gap: 2px;
+    flex-wrap: wrap;
+  }
+
+  .modelListItemStatusButton {
+    height: 20px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  .modelListItemActions :global(.ant-btn) {
+    font-size: 11px;
+    height: 22px;
+    padding: 0 6px;
+  }
+
+  .modelListItemActions :global(.ant-tag) {
+    font-size: 10px;
+    padding: 0 4px;
+    margin: 0;
+    line-height: 18px;
+  }
+
+  /* Hide drag handle on mobile — HTML5 DnD unsupported on touch */
+  .dragHandle {
+    display: none !important;
+  }
+}
