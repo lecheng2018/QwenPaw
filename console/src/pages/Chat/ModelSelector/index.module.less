@@ -19,17 +19,6 @@
     color: #ff7f16;
     box-shadow: 0 2px 8px rgba(97, 92, 237, 0.12);
   }
-
-  @media (max-width: 768px) {
-    max-width: 140px;
-    padding: 4px 6px;
-    gap: 3px;
-  }
-
-  @media (max-width: 480px) {
-    max-width: 96px;
-    font-size: 13px;
-  }
 }
 
 .triggerName {
@@ -37,29 +26,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 180px;
-
-  @media (max-width: 768px) {
-    max-width: 90px;
-  }
-
-  @media (max-width: 480px) {
-    max-width: 60px;
-  }
-}
-
-.marqueeText {
-  display: inline-block;
-  padding-left: 100%;
-  animation: modelNameMarquee 10s linear infinite;
-}
-
-@keyframes modelNameMarquee {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-100%);
-  }
 }
 
 .triggerArrow {
