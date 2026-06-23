@@ -1493,6 +1493,17 @@
   margin-top: 8px;
 }
 
+.reorderToolbar {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.reorderActions {
+  display: inline-flex;
+  align-items: center;
+}
+
 .modelListEmpty {
   padding: 24px;
   text-align: center;
@@ -1530,6 +1541,26 @@
 
   &:hover {
     background: #fafafa;
+  }
+}
+
+.dragHandle {
+  display: inline-flex;
+  align-items: center;
+  cursor: grab;
+  color: #999;
+  margin-right: 8px;
+  font-size: 14px;
+  user-select: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+@media (max-width: 768px) {
+  .dragHandle {
+    display: none !important;
   }
 }
 

@@ -56,6 +56,12 @@ class ModelInfo(BaseModel):
         description="Maximum input context window size (tokens). "
         "Controls when context compaction is triggered.",
     )
+    sort_order: int = Field(
+        default=0,
+        ge=0,
+        description="Display order within the provider. "
+        "Lower values are shown first.",
+    )
     generate_kwargs: Dict[str, Any] = Field(
         default_factory=dict,
         description="Per-model generation parameters that override "
@@ -224,6 +230,12 @@ class Provider(ProviderInfo, ABC):
             for model in self.models + self.extra_models
         ):
             return False, f"Model '{model_info.id}' already exists"
+
+        # Assign sort_order as the next value after the current max.
+        existing = self.models + self.extra_models
+        max_order = max((m.sort_order for m in existing), default=0)
+        model_info.sort_order = max_order + 1
+
         if target == "extra_models":
             self.extra_models.append(model_info)
         elif target == "models":
@@ -245,6 +257,25 @@ class Provider(ProviderInfo, ABC):
             if model.id.strip() != model_id
         ]
         return True, ""
+
+    async def reorder_models(
+        self,
+        ordered_model_ids: list[str],
+    ) -> None:
+        """Reorder models and extra_models by the given ordered ID list.
+        Each model has its sort_order updated to its position in the list.
+        Models not listed receive sort_order = 9999 (they appear last).
+        """
+        id_to_index = {
+            model_id.strip(): i
+            for i, model_id in enumerate(ordered_model_ids)
+        }
+        for model in self.models + self.extra_models:
+            model.sort_order = id_to_index.get(
+                model.id.strip(), 9999
+            )
+        self.models.sort(key=lambda m: m.sort_order)
+        self.extra_models.sort(key=lambda m: m.sort_order)
 
     def update_config(self, config: Dict) -> None:
         """Update provider configuration with the given dictionary."""
@@ -433,14 +464,20 @@ class Provider(ProviderInfo, ABC):
         # class-identity mismatches when the same module is loaded
         # via two different import paths (e.g. PYTHONPATH + pip install).
         meta = self.meta or {}
+        sorted_models = sorted(
+            self.models, key=lambda m: (m.sort_order, m.id),
+        )
+        sorted_extra = sorted(
+            self.extra_models, key=lambda m: (m.sort_order, m.id),
+        )
         return ProviderInfo(
             id=self.id,
             name=self.name,
             base_url=self.base_url,
             api_key=api_key,
             chat_model=self.chat_model,
-            models=[m.model_dump() for m in self.models],
-            extra_models=[m.model_dump() for m in self.extra_models],
+            models=[m.model_dump() for m in sorted_models],
+            extra_models=[m.model_dump() for m in sorted_extra],
             api_key_prefix=self.api_key_prefix,
             is_local=self.is_local,
             is_custom=self.is_custom,

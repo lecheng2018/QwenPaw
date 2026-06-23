@@ -858,7 +858,17 @@
     "filterFreeOnly": "Chỉ mô hình miễn phí:",
     "selectAllProviders": "Chọn tất cả",
     "clearProviderSelection": "Bỏ chọn tất cả",
-    "noMatchingProviders": "Không có nhà cung cấp phù hợp"
+    "noMatchingProviders": "Không có nhà cung cấp phù hợp",
+    "moveUp": "Move Up",
+    "moveDown": "Move Down",
+    "reorder": "Reorder",
+    "done": "Done",
+    "resetOrder": "Reset",
+    "resetOrderTooltip": "Reset model order alphabetically",
+    "modelOrderSaved": "Model order saved",
+    "modelOrderSaveFailed": "Failed to save model order",
+    "modelOrderRestored": "Order restored",
+    "undo": "Undo"
   },
   "security": {
     "parent": "Cài đặt",

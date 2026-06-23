@@ -1654,6 +1654,32 @@ class ProviderManager:  # pylint: disable=too-many-public-methods
             )
         return await provider.get_info()
 
+    async def reorder_provider_models(
+        self,
+        provider_id: str,
+        ordered_model_ids: list[str],
+    ) -> ProviderInfo:
+        provider_id = self._normalize_provider_id(provider_id)
+        provider = self.get_provider(provider_id)
+        if not provider:
+            raise ProviderError(
+                message=f"Provider '{provider_id}' not found.",
+            )
+        await provider.reorder_models(ordered_model_ids)
+
+        # Save provider config to appropriate location
+        is_plugin = provider_id in self.plugin_providers
+        if is_plugin:
+            provider_info = ProviderInfo(**provider.model_dump())
+            self.plugin_providers[provider_id]["info"] = provider_info
+            self._save_plugin_provider(provider)
+        else:
+            self._save_provider(
+                provider,
+                is_builtin=provider_id in self.builtin_providers,
+            )
+        return await provider.get_info()
+
     async def probe_model_multimodal(
         self,
         provider_id: str,

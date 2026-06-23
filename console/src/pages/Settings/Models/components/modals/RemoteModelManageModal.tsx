@@ -31,6 +31,10 @@ import {
   DatabaseOutlined,
   UserOutlined,
   GiftOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  UndoOutlined,
+  HolderOutlined,
 } from "@ant-design/icons";
 import type {
   ProviderInfo,
@@ -40,6 +44,7 @@ import type {
 } from "../../../../../api/types";
 
 import api from "../../../../../api";
+import { providerApi } from "../../../../../api/modules/provider";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../../../../../contexts/ThemeContext";
 import { useAppMessage } from "../../../../../hooks/useAppMessage";
@@ -377,6 +382,14 @@ export function RemoteModelManageModal({
   const [showFreeOnly, setShowFreeOnly] = useState(false);
   const [loadingFilters, setLoadingFilters] = useState(false);
 
+  // Reorder state
+  const [isReordering, setIsReordering] = useState(false);
+  const [localOrder, setLocalOrder] = useState<string[] | null>(null);
+  const [savedOrderSnapshot, setSavedOrderSnapshot] = useState<string[] | null>(
+    null,
+  );
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+
   const [loadingDiscoveredModels, setLoadingDiscoveredModels] = useState(false);
   const PAGE_SIZE = 30;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -695,12 +708,141 @@ export function RemoteModelManageModal({
       ...(provider.extra_models ?? []),
       ...(provider.models ?? []),
     ];
+    // Sort by sort_order so new models appear at the bottom
+    all_models.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     const q = deferredSearchQuery.trim().toLowerCase();
     if (!q) return all_models;
     return all_models.filter(
       (m) => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q),
     );
   }, [provider.models, provider.extra_models, deferredSearchQuery]);
+
+  // Apply local reorder when in reorder mode
+  const orderedModels = useMemo(() => {
+    if (!isReordering || !localOrder) return filteredModels;
+    const modelMap = new Map(filteredModels.map((m) => [m.id, m]));
+    const ordered: ModelInfo[] = [];
+    for (const id of localOrder) {
+      const m = modelMap.get(id);
+      if (m) ordered.push(m);
+    }
+    // Append any filtered models not in localOrder
+    for (const m of filteredModels) {
+      if (!localOrder.includes(m.id)) ordered.push(m);
+    }
+    return ordered;
+  }, [filteredModels, isReordering, localOrder]);
+
+  // Reorder handlers
+  const handleMoveUp = useCallback((index: number) => {
+    if (index <= 0) return;
+    setLocalOrder((prev) => {
+      if (!prev) return prev;
+      const next = [...prev];
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      return next;
+    });
+  }, []);
+
+  const handleMoveDown = useCallback((index: number) => {
+    setLocalOrder((prev) => {
+      if (!prev) return prev;
+      if (index >= prev.length - 1) return prev;
+      const next = [...prev];
+      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+      return next;
+    });
+  }, []);
+
+  const handleStartReorder = useCallback(() => {
+    // Snapshot the current order for undo
+    const order = filteredModels.map((m) => m.id);
+    setLocalOrder(order);
+    setSavedOrderSnapshot(null);
+    setIsReordering(true);
+  }, [filteredModels]);
+
+  const handleSaveReorder = useCallback(async () => {
+    if (!localOrder) return;
+    try {
+      await providerApi.reorderModels(provider.id, {
+        ordered_model_ids: localOrder,
+      });
+      setSavedOrderSnapshot(localOrder);
+      setIsReordering(false);
+      setLocalOrder(null);
+      message.success(t("models.modelOrderSaved", "排序已保存"));
+    } catch {
+      message.error(t("models.modelOrderSaveFailed", "保存排序失败"));
+    }
+  }, [localOrder, provider.id, message, t]);
+
+  const handleUndoReorder = useCallback(async () => {
+    if (!savedOrderSnapshot) return;
+    try {
+      await providerApi.reorderModels(provider.id, {
+        ordered_model_ids: savedOrderSnapshot,
+      });
+      setSavedOrderSnapshot(null);
+      message.success(t("models.modelOrderRestored", "排序已恢复"));
+    } catch {
+      message.error(t("models.modelOrderSaveFailed", "恢复排序失败"));
+    }
+  }, [savedOrderSnapshot, provider.id, message, t]);
+
+  const handleResetOrder = useCallback(async () => {
+    // Reset to alphabetical order (sorted by name then id)
+    const alphabetical = [...filteredModels]
+      .sort((a, b) => {
+        const cmp = a.name.localeCompare(b.name);
+        if (cmp !== 0) return cmp;
+        return a.id.localeCompare(b.id);
+      })
+      .map((m) => m.id);
+    await providerApi.reorderModels(provider.id, {
+      ordered_model_ids: alphabetical,
+    });
+    setLocalOrder(null);
+    setSavedOrderSnapshot(null);
+    setIsReordering(false);
+    message.success(t("models.modelOrderRestored", "排序已恢复"));
+  }, [filteredModels, provider.id, message, t]);
+
+  // Drag-and-drop handlers
+  const handleDragStart = useCallback(
+    (e: React.DragEvent, index: number) => {
+      if (!isReordering) return;
+      setDragIndex(index);
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(index));
+    },
+    [isReordering],
+  );
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent, dropIndex: number) => {
+      e.preventDefault();
+      if (dragIndex === null || dragIndex === dropIndex) return;
+      setLocalOrder((prev) => {
+        if (!prev) return prev;
+        const next = [...prev];
+        const [moved] = next.splice(dragIndex, 1);
+        next.splice(dropIndex, 0, moved);
+        return next;
+      });
+      setDragIndex(null);
+    },
+    [dragIndex],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDragIndex(null);
+  }, []);
 
   const colors = tagColors(isDark);
 
@@ -722,23 +864,96 @@ export function RemoteModelManageModal({
         allowClear
       />
 
+      {/* Reorder toolbar */}
+      <div className={styles.reorderToolbar}>
+        {!isReordering && !deferredSearchQuery.trim() && (
+          <Button size="small" onClick={handleStartReorder}>
+            {t("models.reorder", "排序")}
+          </Button>
+        )}
+        {!deferredSearchQuery.trim() && savedOrderSnapshot && (
+          <Button
+            size="small"
+            icon={<UndoOutlined />}
+            onClick={handleUndoReorder}
+            style={{ marginLeft: 8 }}
+          >
+            {t("models.undo", "撤销")}
+          </Button>
+        )}
+        {isReordering && (
+          <span className={styles.reorderActions}>
+            <Button
+              type="primary"
+              size="small"
+              onClick={handleSaveReorder}
+              style={{ marginRight: 8 }}
+            >
+              {t("models.done", "完成")}
+            </Button>
+            <Button size="small" onClick={handleResetOrder}>
+              {t("models.resetOrder", "重置")}
+            </Button>
+          </span>
+        )}
+      </div>
+
       {/* Model list */}
       <div className={styles.modelList}>
         {filteredModels.length === 0 ? (
           <div className={styles.modelListEmpty}>{t("models.noModels")}</div>
         ) : (
           <>
-            {filteredModels.slice(0, visibleCount).map((m) => {
+            {orderedModels.slice(0, visibleCount).map((m, idx) => {
               const isDeletable = provider.is_custom || extraModelIds.has(m.id);
               const isConfigOpen = configOpenModelId === m.id;
               return (
                 <div key={m.id}>
-                  <div className={styles.modelListItem}>
+                  <div
+                    className={styles.modelListItem}
+                    draggable={isReordering}
+                    onDragStart={(e) => handleDragStart(e, idx)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, idx)}
+                    onDragEnd={handleDragEnd}
+                    style={{
+                      opacity: dragIndex === idx ? 0.5 : undefined,
+                    }}
+                  >
+                    {isReordering && (
+                      <span className={styles.dragHandle}>
+                        <HolderOutlined />
+                      </span>
+                    )}
                     <div className={styles.modelListItemInfo}>
                       <span className={styles.modelListItemName}>{m.name}</span>
                       <span className={styles.modelListItemId}>{m.id}</span>
                     </div>
                     <div className={styles.modelListItemActions}>
+                      {isReordering && (
+                        <>
+                          <Tooltip title={t("models.moveUp", "上移")}>
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<ArrowUpOutlined />}
+                              onClick={() => handleMoveUp(idx)}
+                              disabled={idx === 0}
+                              style={darkBtnStyle}
+                            />
+                          </Tooltip>
+                          <Tooltip title={t("models.moveDown", "下移")}>
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<ArrowDownOutlined />}
+                              onClick={() => handleMoveDown(idx)}
+                              disabled={idx >= orderedModels.length - 1}
+                              style={darkBtnStyle}
+                            />
+                          </Tooltip>
+                        </>
+                      )}
                       <CapabilityTags model={m} isDark={isDark} />
                       {m.is_free && (
                         <Tag

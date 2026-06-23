@@ -7,6 +7,7 @@ import type {
   ModelSlotRequest,
   CreateCustomProviderRequest,
   AddModelRequest,
+  ReorderModelsRequest,
   ModelConfigRequest,
   LocalActionResponse,
   LocalModelConfig,
@@ -104,6 +105,15 @@ export const providerApi = {
         modelId,
       )}`,
       { method: "DELETE" },
+    ),
+
+  reorderModels: (providerId: string, body: ReorderModelsRequest) =>
+    request<ProviderInfo>(
+      `/models/${encodeURIComponent(providerId)}/models/reorder`,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
     ),
 
   configureModel: (

@@ -130,6 +130,13 @@ class AddModelRequest(BaseModel):
     )
 
 
+class ReorderModelsRequest(BaseModel):
+    ordered_model_ids: list[str] = Field(
+        ...,
+        description="Model IDs in the desired display order",
+    )
+
+
 class ModelConfigRequest(BaseModel):
     max_tokens: Optional[int] = Field(
         default=None,
@@ -489,6 +496,26 @@ async def add_model_endpoint(
         )  # Validate provider exists and add model
     except (ValueError, AppBaseException) as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return provider
+
+
+@router.post(
+    "/{provider_id}/models/reorder",
+    response_model=ProviderInfo,
+    summary="Reorder models within a provider",
+)
+async def reorder_models_endpoint(
+    manager: ProviderManager = Depends(get_provider_manager),
+    provider_id: str = Path(...),
+    body: ReorderModelsRequest = Body(...),
+) -> ProviderInfo:
+    try:
+        provider = await manager.reorder_provider_models(
+            provider_id=provider_id,
+            ordered_model_ids=body.ordered_model_ids,
+        )
+    except (ValueError, AppBaseException) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return provider
 
 
