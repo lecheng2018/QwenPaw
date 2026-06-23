@@ -9,14 +9,113 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  @media (max-width: 768px) {
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: initial;
+    white-space: nowrap;
+    flex: 1 1 auto;
+  }
 }
 
 .chatNameCoding {
   max-width: 100px;
+
+  @media (max-width: 768px) {
+    max-width: 60px;
+    flex: 0 1 60px;
+  }
+}
+
+.marquee {
+  display: inline-block;
+  animation: marquee 8s linear infinite;
+  padding-right: 40px;
+  white-space: nowrap;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.sessionPopover {
+  min-width: 200px;
+  max-width: 300px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.sessionPopoverList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sessionPopoverItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--ant-color-text, rgba(0, 0, 0, 0.88));
+  transition: background-color 0.15s;
+
+  &:hover {
+    background-color: var(--ant-color-bg-text-hover, rgba(0, 0, 0, 0.04));
+  }
+}
+
+.sessionPopoverItemActive {
+  color: var(--ant-color-primary, #ff9d4d);
+  font-weight: 500;
+}
+
+.sessionPopoverItemName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.sessionPopoverItemPin {
+  flex-shrink: 0;
+  margin-left: 8px;
+  font-size: 12px;
 }
 
 :global(.dark-mode) {
   .chatName {
     color: rgba(255, 255, 255, 0.88);
+  }
+
+  .sessionPopoverItem {
+    color: rgba(255, 255, 255, 0.88);
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+    }
+  }
+
+  .sessionPopoverItemActive {
+    color: #ff9d4d;
+  }
+}
+
+:global(.sessionPopoverOverlay) {
+  z-index: 1100;
+
+  :global(.ant-popover-inner) {
+    padding: 8px;
   }
 }

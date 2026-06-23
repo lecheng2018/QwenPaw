@@ -68,6 +68,9 @@ export default function ModelSelector() {
 
   const [showMoreFree, setShowMoreFree] = useState(false);
   const moreContentRef = useRef<HTMLDivElement>(null);
+  const triggerNameRef = useRef<HTMLSpanElement | null>(null);
+  const triggerMeasureRef = useRef<HTMLSpanElement | null>(null);
+  const [triggerShouldMarquee, setTriggerShouldMarquee] = useState(false);
   const [expandedModels, setExpandedModels] = useState<Record<string, number>>(
     {},
   );
@@ -215,6 +218,18 @@ export default function ModelSelector() {
       setSearchQuery("");
     }
   }, [open]);
+
+  // Detect triggerName overflow for marquee effect
+  useEffect(() => {
+    const check = () => {
+      const containerWidth = triggerNameRef.current?.getBoundingClientRect().width ?? 0;
+      const textWidth = triggerMeasureRef.current?.getBoundingClientRect().width ?? 0;
+      setTriggerShouldMarquee(textWidth > containerWidth + 2);
+    };
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, [activeModelName]);
 
   const activeProviderId = activeModels?.active_llm?.provider_id;
   const activeModelId = activeModels?.active_llm?.model;
@@ -714,7 +729,25 @@ export default function ModelSelector() {
             {showActiveProviderIcon && activeProviderId && (
               <ProviderIcon providerId={activeProviderId} size={16} />
             )}
-            <span className={styles.triggerName}>{activeModelName}</span>
+            <span className={styles.triggerName} ref={triggerNameRef}>
+              <span
+                ref={triggerMeasureRef}
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  visibility: "hidden",
+                  whiteSpace: "nowrap",
+                  pointerEvents: "none",
+                }}
+              >
+                {activeModelName}
+              </span>
+              {triggerShouldMarquee ? (
+                <span className={styles.triggerNameMarquee}>{activeModelName}</span>
+              ) : (
+                activeModelName
+              )}
+            </span>
             {open ? <UpOutlined /> : <DownOutlined />}
           </div>
         </Tooltip>

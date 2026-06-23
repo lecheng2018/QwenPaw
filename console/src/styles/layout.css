@@ -1048,12 +1048,32 @@ html.dark-mode .qwenpaw-sender-content {
   display: flex !important;
   margin: 0 auto 0 0 !important;
   justify-content: flex-start !important;
+  gap: 4px !important;
+}
+
+/* Mobile: ensure rightHeader doesn't clip children and has minimum width */
+@media (max-width: 768px) {
+  [class*="chat-anywhere-default-header-right"],
+  [class*="default-header-right"] {
+    overflow: visible !important;
+    min-width: 0 !important;
+    flex-wrap: nowrap !important;
+  }
 }
 
 [class*="chat-anywhere-default-header-right"] > *,
 [class*="default-header-right"] > * {
-  margin-right: auto !important;
+  margin-right: 0 !important;
   margin-left: 0 !important;
+}
+
+/* Prevent ChatActionGroup from being pushed off-screen on mobile */
+@media (max-width: 768px) {
+  [class*="chat-anywhere-default-header-right"] > *:last-child,
+  [class*="default-header-right"] > *:last-child {
+    margin-right: 0 !important;
+    flex-shrink: 0 !important;
+  }
 }
 
 /* ─── Global disabled button styles ────────────────────────────────────────── */
