@@ -1156,47 +1156,7 @@
 
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .pageHeader {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 12px;
-    gap: 10px;
-  }
-
-  .breadcrumbHeader {
-    font-size: 13px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .breadcrumbCurrent {
-    font-size: 15px;
-  }
-
-  .headerRight {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .headerActionsLeft,
-  .headerActionsRight,
-  .batchActions {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .headerActionsLeft :global(.ant-btn) {
-    font-size: 13px;
-    height: 32px;
-    padding: 0 10px;
-  }
-
-  .primaryTransferButton,
-  .primaryActionButton {
-    min-width: unset;
-  }
-
+  /* Note: PageHeader component has its own mobile styles from #5362 */
   .toolbar {
     flex-direction: column;
     align-items: stretch;
