@@ -1247,9 +1247,21 @@
     padding: 12px;
   }
 
+  .skillListItem {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .listItemLeft {
+    width: 100%;
+  }
+
   .listItemRight {
     margin-left: 0;
-    margin-top: 8px;
+    width: 100%;
+    justify-content: flex-end;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border-secondary, #eae8e7);
   }
 
   .listItemHeader {
