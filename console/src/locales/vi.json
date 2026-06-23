@@ -186,13 +186,30 @@
         "description": "Lên kế hoạch cho tác vụ được mô tả"
       }
     },
-    "conversationHistory": "Lịch sử hội thoại",
     "contextMenu": {
       "open": "Mở",
       "rename": "Đổi tên",
       "pin": "Ghim",
       "unpin": "Bỏ ghim",
       "delete": "Xóa"
+    },
+    "queue": {
+      "title": "Hàng đợi tin nhắn",
+      "paused": "Đã tạm dừng",
+      "sendFailed": "Gửi thất bại",
+      "resume": "Tiếp tục hàng đợi",
+      "pause": "Tạm dừng hàng đợi",
+      "clear": "Xóa hàng đợi",
+      "dragSort": "Kéo để sắp xếp lại",
+      "edit": "Chỉnh sửa",
+      "retry": "Thử lại",
+      "skip": "Bỏ qua",
+      "interruptAndSend": "Ngắt và gửi",
+      "delete": "Xóa",
+      "file": "Tệp",
+      "noChatWarning": "Vui lòng gửi một tin nhắn đầu tiên để tạo cuộc trò chuyện trước khi sử dụng hàng đợi",
+      "queueFull": "Hàng đợi đầy (tối đa {{max}} mục), vui lòng gửi hoặc xóa một số tin nhắn trước",
+      "otherTabOwner": "Cuộc trò chuyện này đang được gửi từ một tab khác. Tab này chỉ có thể thêm vào hàng đợi; mọi thao tác gửi được xử lý bởi tab kia."
     },
     "group": {
       "pinned": "Đã ghim",
@@ -205,7 +222,8 @@
       "searchConversations": "Tìm kiếm…",
       "noConversations": "Không có hội thoại",
       "loadingConversations": "Đang tải…"
-    }
+    },
+    "conversationHistory": "Lịch sử hội thoại"
   },
   "debug": {
     "title": "Gỡ lỗi",
@@ -591,7 +609,11 @@
   "preview": {
     "error": {
       "SENSITIVE_FILE_BLOCKED": "File bị chặn bởi File Guard (bảo vệ file nhạy cảm).",
-      "OUTSIDE_WORKSPACE": "File nằm ngoài phạm vi workspace.",
+      "OUTSIDE_WORKSPACE": "File nằm ngoài phạm vi workspace. Bật \"Cho phép xem trước ngoài Workspace\" trong Cài đặt → Bảo mật → File Guard.",
+      "FORBIDDEN": "Truy cập bị từ chối: không đủ quyền để xem trước file này.",
+      "NOT_FOUND": "Không tìm thấy file, có thể đã bị di chuyển hoặc xóa. Nếu đang dùng đường dẫn tương đối, hãy thử dùng đường dẫn tuyệt đối.",
+      "LOAD_FAILED": "Không thể tải xem trước file.",
+      "LOAD_FAILED_DETAIL": "Không thể tải xem trước file: {{detail}}",
       "UNKNOWN": "Không thể xem trước file này."
     }
   },

@@ -25,6 +25,7 @@
     "contentPlaceholder": "Enter content...",
     "help": "Help",
     "close": "Close",
+    "back": "Back",
     "actions": "Actions",
     "total": "Total {{count}}",
     "clear": "Clear",
@@ -392,7 +393,10 @@
     "configUpdateFailed": "Failed to update system prompt configuration",
     "attribution": "Workspace design partly inspired by the OpenClaw project — thank you! 🐾",
     "saveSuccess": "Saved successfully",
-    "saveFailed": "Save failed"
+    "saveFailed": "Save failed",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "unsaved": "Unsaved"
   },
   "agent": {
     "parent": "Settings",
@@ -1206,6 +1210,7 @@
     "saveSuccess": "Session saved successfully",
     "saveFailed": "Failed to save session",
     "batchDeleteButton": "Batch Delete",
+    "filterTitle": "Filter by Title",
     "filterUserId": "Filter by User ID",
     "filterChannel": "Filter by Channel",
     "allChannels": "All Channels",
@@ -2044,6 +2049,24 @@
       "unpin": "Unpin",
       "delete": "Delete"
     },
+    "queue": {
+      "title": "Message Queue",
+      "paused": "Paused",
+      "sendFailed": "Send failed",
+      "resume": "Resume queue",
+      "pause": "Pause queue",
+      "clear": "Clear queue",
+      "dragSort": "Drag to reorder",
+      "edit": "Edit",
+      "retry": "Retry",
+      "skip": "Skip",
+      "interruptAndSend": "Interrupt & send",
+      "delete": "Delete",
+      "file": "File",
+      "noChatWarning": "Please send a message first to create a conversation before using the queue",
+      "queueFull": "Queue is full (max {{max}} items), please send or remove some messages first",
+      "otherTabOwner": "This conversation is being sent from another tab. This tab can only add inputs to the queue; all send operations are handled by the other tab."
+    },
     "group": {
       "pinned": "Pinned",
       "today": "Today",
@@ -2624,7 +2647,7 @@
       "SENSITIVE_FILE_BLOCKED": "This file is blocked by File Guard (sensitive file protection).",
       "OUTSIDE_WORKSPACE": "This file is outside the workspace scope. Enable \"Allow Console Preview Outside Workspace\" in Settings → Security → File Guard.",
       "FORBIDDEN": "Access denied: insufficient permissions to preview this file.",
-      "NOT_FOUND": "File not found. It may have been moved or deleted.",
+      "NOT_FOUND": "File not found. It may have been moved or deleted. If a relative path was used, please try using an absolute path instead.",
       "LOAD_FAILED": "Failed to load file preview.",
       "LOAD_FAILED_DETAIL": "Failed to load file preview: {{detail}}"
     }

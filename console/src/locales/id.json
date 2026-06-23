@@ -202,7 +202,24 @@
       "unpin": "Lepas sematan",
       "delete": "Hapus"
     },
-    "conversationHistory": "Riwayat Percakapan",
+    "queue": {
+      "title": "Antrean pesan",
+      "paused": "Dijeda",
+      "sendFailed": "Gagal mengirim",
+      "resume": "Lanjutkan antrean",
+      "pause": "Jeda antrean",
+      "clear": "Hapus antrean",
+      "dragSort": "Seret untuk mengurutkan",
+      "edit": "Edit",
+      "retry": "Coba lagi",
+      "skip": "Lewati",
+      "interruptAndSend": "Hentikan & kirim",
+      "delete": "Hapus",
+      "file": "File",
+      "noChatWarning": "Kirim pesan terlebih dahulu untuk membuat percakapan sebelum menggunakan antrean",
+      "queueFull": "Antrean penuh (maks. {{max}} item). Kirim atau hapus beberapa pesan terlebih dahulu",
+      "otherTabOwner": "Percakapan ini sedang dikirim dari tab lain. Tab ini hanya dapat menambahkan input ke antrean."
+    },
     "group": {
       "pinned": "Disematkan",
       "today": "Hari ini",
@@ -214,7 +231,8 @@
       "searchConversations": "Cari…",
       "noConversations": "Tidak ada percakapan",
       "loadingConversations": "Memuat…"
-    }
+    },
+    "conversationHistory": "Riwayat Percakapan"
   },
   "modelSelector": {
     "selectModel": "Pilih model",
@@ -697,6 +715,16 @@
       "authEndpoint": "Authorization Endpoint (timpa)",
       "tokenEndpoint": "Token Endpoint (timpa)",
       "endpointHint": "Kosongkan untuk deteksi otomatis dari server MCP."
+    }
+  },
+  "preview": {
+    "error": {
+      "SENSITIVE_FILE_BLOCKED": "File diblokir oleh File Guard (perlindungan file sensitif).",
+      "OUTSIDE_WORKSPACE": "File berada di luar cakupan workspace. Aktifkan \"Izinkan Pratinjau Konsol di Luar Workspace\" di Pengaturan → Keamanan → File Guard.",
+      "FORBIDDEN": "Akses ditolak: izin tidak cukup untuk melihat pratinjau file ini.",
+      "NOT_FOUND": "File tidak ditemukan, mungkin telah dipindahkan atau dihapus. Jika menggunakan jalur relatif, coba gunakan jalur absolut.",
+      "LOAD_FAILED": "Gagal memuat pratinjau file.",
+      "LOAD_FAILED_DETAIL": "Gagal memuat pratinjau file: {{detail}}"
     }
   },
   "pluginManager": {

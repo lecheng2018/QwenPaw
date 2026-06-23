@@ -1102,6 +1102,7 @@
     "saveSuccess": "Session saved successfully",
     "saveFailed": "Falhou to Salvar session",
     "batchDeleteButton": "Batch Excluir",
+    "filterTitle": "Filtrar por Título",
     "filterUserId": "Filtrar by Usuario ID",
     "filterChannel": "Filtrar by Channel",
     "allChannels": "Todos Canais",
@@ -1908,7 +1909,24 @@
       "unpin": "Unpin",
       "delete": "Excluir"
     },
-    "conversationHistory": "Histórico de conversas",
+    "queue": {
+      "title": "Fila de mensagens",
+      "paused": "Pausado",
+      "sendFailed": "Falha no envio",
+      "resume": "Retomar fila",
+      "pause": "Pausar fila",
+      "clear": "Limpar fila",
+      "dragSort": "Arraste para reordenar",
+      "edit": "Editar",
+      "retry": "Tentar novamente",
+      "skip": "Pular",
+      "interruptAndSend": "Interromper e enviar",
+      "delete": "Excluir",
+      "file": "Arquivo",
+      "noChatWarning": "Envie uma mensagem primeiro para criar uma conversa antes de usar a fila",
+      "queueFull": "Fila cheia (m\u00e1x. {{max}} itens). Envie ou remova algumas mensagens primeiro",
+      "otherTabOwner": "Esta conversa est\u00e1 sendo enviada de outra aba. Nesta aba, voc\u00ea s\u00f3 pode adicionar entradas \u00e0 fila."
+    },
     "group": {
       "pinned": "Fixados",
       "today": "Hoje",
@@ -1920,7 +1938,8 @@
       "searchConversations": "Pesquisar…",
       "noConversations": "Sem conversas",
       "loadingConversations": "Carregando…"
-    }
+    },
+    "conversationHistory": "Histórico de conversas"
   },
   "security": {
     "parent": "Configuracoes",
@@ -2429,7 +2448,7 @@
       "SENSITIVE_FILE_BLOCKED": "Este arquivo está bloqueado pelo File Guard (proteção de arquivos sensíveis).",
       "OUTSIDE_WORKSPACE": "Este arquivo está fora do escopo do workspace. Ative \"Permitir Preview Fora do Workspace no Console\" em Configurações → Segurança → File Guard.",
       "FORBIDDEN": "Acesso negado: permissões insuficientes para visualizar este arquivo.",
-      "NOT_FOUND": "Arquivo não encontrado. Pode ter sido movido ou excluído.",
+      "NOT_FOUND": "Arquivo não encontrado. Pode ter sido movido ou excluído. Se foi usado um caminho relativo, tente usar um caminho absoluto.",
       "LOAD_FAILED": "Falha ao carregar a visualização do arquivo.",
       "LOAD_FAILED_DETAIL": "Falha ao carregar a visualização do arquivo: {{detail}}"
     }
