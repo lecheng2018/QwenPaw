@@ -111,7 +111,6 @@ const ChatSessionInitializer: React.FC = () => {
     }
     // Intentionally exclude currentSessionId from deps: only react to URL / session list changes.
     // currentSessionId is read via ref to avoid circular triggers.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, sessions, setCurrentSessionId]);
 
   // ── Sidebar event handlers ────────────────────────────────────────────────
@@ -133,7 +132,6 @@ const ChatSessionInitializer: React.FC = () => {
       const matching = currentSessions.find((s) => s.id === sessionId);
 
       if (matching) {
-        // Preload then navigate + sync, mirroring ChatSessionDrawer behaviour.
         sessionApi.isSessionSwitching = true;
         sessionApi
           .preloadSession(sessionId)
@@ -145,14 +143,24 @@ const ChatSessionInitializer: React.FC = () => {
             setCurrentSessionId(sessionId);
           })
           .catch(() => {
-            // Fallback: just set the session id; URL sync via onSessionSelected
             setCurrentSessionId(sessionId);
           })
           .finally(() => {
-            requestAnimationFrame(() => {
+            sessionApi.finishSessionSwitch();
+            window.dispatchEvent(
+              new CustomEvent("qwenpaw:sidebar-switch-done"),
+            );
+            // Fallback: resolve after 2000ms to ensure finally() always runs
+            // even if rAF is dropped (background tab, fast re-clicks, etc.).
+            return new Promise<void>(() => {
               requestAnimationFrame(() => {
-                sessionApi.finishSessionSwitch();
+                requestAnimationFrame(() => {
+                  sessionApi.finishSessionSwitch();
+                });
               });
+              setTimeout(() => {
+                sessionApi.finishSessionSwitch();
+              }, 2000);
             });
           });
       }
@@ -163,6 +171,9 @@ const ChatSessionInitializer: React.FC = () => {
      * Creates a fresh session via the library's createSession().
      */
     const handleNewChat = () => {
+      if (sessionApi.isSessionSwitching) {
+        sessionApi.finishSessionSwitch();
+      }
       void createSession();
     };
 
@@ -179,7 +190,6 @@ const ChatSessionInitializer: React.FC = () => {
       );
       window.removeEventListener("qwenpaw:sidebar-new-chat", handleNewChat);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, setCurrentSessionId, createSession]);
 
   return null;

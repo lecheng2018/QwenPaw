@@ -6,7 +6,10 @@ import React, {
   useState,
 } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { buildSessionPath } from "../../../../utils/sessionRoute";
+import {
+  buildSessionPath,
+  getSessionIdFromPath,
+} from "../../../../utils/sessionRoute";
 import { Drawer, Spin, Tooltip } from "antd";
 import { FixedSizeList, type ListChildComponentProps } from "react-window";
 import { IconButton } from "@agentscope-ai/design";
@@ -32,6 +35,10 @@ import {
   useContextMenu,
   type ContextMenuItem,
 } from "../../../../components/ContextMenu";
+import {
+  syncSessionsGlobal,
+  type ExtendedSession,
+} from "../../../../stores/sessionListStore";
 import styles from "./index.module.less";
 
 /** Fixed height of each session item in pixels (matches CSS min-height) */
@@ -171,21 +178,25 @@ const ChatSessionDrawer: React.FC<ChatSessionDrawerProps> = (props) => {
   const { currentSessionId, setCurrentSessionId } = sdkState;
   const setSessions = props.embedded ? setLocalSessions : sdkState.setSessions;
   const createSession = sdkActions.createSession;
+  const { embedded, pinned, onClose } = props;
 
   /** Create a new session; close the drawer only when not pinned */
   const handleCreateSession = useCallback(async () => {
-    if (props.embedded) {
+    if (sessionApi.isSessionSwitching) {
+      sessionApi.finishSessionSwitch();
+    }
+    if (embedded) {
       // In embedded mode, we're outside the SDK context tree.
       // Dispatch a DOM event so ChatSessionInitializer (inside the tree) handles it.
       window.dispatchEvent(new CustomEvent("qwenpaw:sidebar-new-chat"));
     } else {
       await createSession();
       // Only close the drawer (not the embedded panel) when not pinned
-      if (!props.pinned) {
-        props.onClose();
+      if (!pinned) {
+        onClose();
       }
     }
-  }, [createSession, props.onClose, props.pinned, props.embedded]);
+  }, [createSession, onClose, pinned, embedded]);
 
   /** ID of the session currently being renamed */
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
@@ -306,13 +317,14 @@ const ChatSessionDrawer: React.FC<ChatSessionDrawerProps> = (props) => {
 
   const handleSessionClick = useCallback(
     (sessionId: string) => {
-      // Block clicks while a switch is in progress.
-      if (sessionApi.isSessionSwitching) return;
-      if (sessionId === currentSessionId) return;
+      if (sessionApi.isSessionSwitching) {
+        return;
+      }
+      if (sessionId === currentSessionId) {
+        return;
+      }
 
       if (props.embedded) {
-        // In embedded mode, we're outside the SDK context tree.
-        // Dispatch a DOM event so ChatSessionInitializer (inside the tree) handles it.
         setSwitchingSessionId(sessionId);
         window.dispatchEvent(
           new CustomEvent("qwenpaw:sidebar-select-session", {
@@ -322,15 +334,9 @@ const ChatSessionDrawer: React.FC<ChatSessionDrawerProps> = (props) => {
         return;
       }
 
-      // Lock immediately (synchronous) before any async work.
       sessionApi.isSessionSwitching = true;
       setSwitchingSessionId(sessionId);
 
-      // 1) Pre-load session data (network request happens here).
-      // 2) Navigate to the correct URL (using realId if available).
-      // 3) Only THEN set currentSessionId so the library's useAsyncEffect
-      //    hits the result cache instead of making another request.
-      // 4) Keep lock held until the next React render cycle completes.
       sessionApi
         .preloadSession(sessionId)
         .then(({ realId }) => {
@@ -358,6 +364,9 @@ const ChatSessionDrawer: React.FC<ChatSessionDrawerProps> = (props) => {
             requestAnimationFrame(() => {
               requestAnimationFrame(() => resolve());
             });
+            // Fallback: resolve after 2000ms to ensure finally() always runs
+            // even if rAF is dropped (background tab, fast re-clicks, etc.).
+            setTimeout(() => resolve(), 2000);
           });
         })
         .finally(() => {
@@ -373,6 +382,29 @@ const ChatSessionDrawer: React.FC<ChatSessionDrawerProps> = (props) => {
       props.embedded,
     ],
   );
+
+  // Listen for embedded switch completion so we can clear switchingSessionId.
+  useEffect(() => {
+    const onDone = () => {
+      setSwitchingSessionId(null);
+    };
+    window.addEventListener("qwenpaw:sidebar-switch-done", onDone);
+    return () =>
+      window.removeEventListener("qwenpaw:sidebar-switch-done", onDone);
+  }, []);
+
+  // Fallback: if the global switching lock is released but switchingSessionId
+  // is still stuck (e.g. event missed, component re-mounted, race condition),
+  // clear it so the UI doesn't remain greyed out.
+  useEffect(() => {
+    if (!switchingSessionId) return;
+    const id = setInterval(() => {
+      if (!sessionApi.isSessionSwitching) {
+        setSwitchingSessionId(null);
+      }
+    }, 500);
+    return () => clearInterval(id);
+  }, [switchingSessionId]);
 
   // In embedded mode, clear switchingSessionId when the URL changes
   // (signals that the session switch initiated via DOM event has completed).
@@ -395,26 +427,29 @@ const ChatSessionDrawer: React.FC<ChatSessionDrawerProps> = (props) => {
         await chatApi.deleteChat(backendId);
       }
 
-      if (currentSessionId === sessionId) {
-        if (props.embedded) {
-          // In embedded mode, create a new chat via DOM event
-          // since we can't directly set the session from outside the context tree.
+      // Fetch the updated session list after deletion
+      const freshList =
+        (await sessionApi.getSessionList()) as ExtendedChatSession[];
+      setSessions(freshList);
+      syncSessionsGlobal(freshList as unknown as ExtendedSession[]);
+
+      // Post-deletion check: if the URL's chatId no longer exists in the
+      // refreshed list, the deleted session was the one being viewed.
+      // This approach avoids all ID-format mismatch issues (timestamp vs UUID,
+      // realId vs id, multiple backend UUIDs for the same session).
+      const urlChatId = getSessionIdFromPath(location.pathname);
+      if (urlChatId) {
+        const stillExists = freshList.some(
+          (s) =>
+            s.id === urlChatId ||
+            (s as ExtendedChatSession).realId === urlChatId,
+        );
+        if (!stillExists) {
           window.dispatchEvent(new CustomEvent("qwenpaw:sidebar-new-chat"));
-        } else {
-          const next = sessions.filter((s) => s.id !== sessionId);
-          setCurrentSessionId(next[0]?.id);
         }
       }
-
-      await refreshSessions();
     },
-    [
-      sessions,
-      currentSessionId,
-      setCurrentSessionId,
-      refreshSessions,
-      props.embedded,
-    ],
+    [sessions, setSessions, location.pathname],
   );
 
   /** Enter rename mode for a session */

@@ -124,28 +124,28 @@ export function PoolSkillCard({
 
       {/* Footer */}
       <div className={styles.cardFooter}>
-          <Button
-            className={styles.actionButton}
-            disabled={batchModeEnabled}
-            onClick={(e) => {
-              e.stopPropagation();
-              onBroadcast(skill);
-            }}
-          >
-            {t("skillPool.broadcast")}
-          </Button>
-          <Button
-            danger
-            className={styles.deleteButton}
-            disabled={batchModeEnabled}
-            onClick={(e) => {
-              e.stopPropagation();
-              void onDelete(skill);
-            }}
-          >
-            {t("skillPool.delete")}
-          </Button>
-        </div>
+        <Button
+          className={styles.actionButton}
+          disabled={batchModeEnabled}
+          onClick={(e) => {
+            e.stopPropagation();
+            onBroadcast(skill);
+          }}
+        >
+          {t("skillPool.broadcast")}
+        </Button>
+        <Button
+          danger
+          className={styles.deleteButton}
+          disabled={batchModeEnabled}
+          onClick={(e) => {
+            e.stopPropagation();
+            void onDelete(skill);
+          }}
+        >
+          {t("skillPool.delete")}
+        </Button>
+      </div>
     </Card>
   );
 }
