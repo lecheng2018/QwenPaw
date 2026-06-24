@@ -17,7 +17,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
-from agentscope_runtime.engine.schemas.exception import ConfigurationException
+from qwenpaw.exceptions import ConfigurationException
 
 from ...config import get_heartbeat_config, get_dream_cron
 from ..inbox_store import append_event as append_inbox_event
@@ -32,6 +32,7 @@ from .heartbeat import (
 )
 from .models import CronExecutionRecord, CronJobSpec, CronJobState
 from .repo.base import BaseJobRepository
+from ...api_action import ManagerBase, api_action
 
 HEARTBEAT_JOB_ID = "_heartbeat"
 DREAM_JOB_ID = "_dream"
@@ -48,23 +49,25 @@ class _Runtime:
     sem: asyncio.Semaphore
 
 
-class CronManager:
+class CronManager(ManagerBase):
+    endpoint_prefix = "crons"
+
     def __init__(
         self,
         *,
         repo: BaseJobRepository,
-        runner: Any,
+        workspace: Any,
         channel_manager: Any,
         timezone: str = "UTC",  # pylint: disable=redefined-outer-name
         agent_id: Optional[str] = None,
     ):
         self._repo = repo
-        self._runner = runner
+        self._workspace = workspace
         self._channel_manager = channel_manager
         self._agent_id = agent_id
         self._scheduler = AsyncIOScheduler(timezone=timezone)
         self._executor = CronExecutor(
-            runner=runner,
+            workspace=workspace,
             channel_manager=channel_manager,
         )
 
@@ -166,6 +169,12 @@ class CronManager:
 
     # ----- read/state -----
 
+    @api_action(
+        methods={"http", "cli", "slash"},
+        http_method="GET",
+        http_path="/crons/jobs",
+        slash_command="cron-list",
+    )
     async def list_jobs(self) -> list[CronJobSpec]:
         return await self._repo.list_jobs()
 
@@ -182,12 +191,25 @@ class CronManager:
 
     # ----- write/control -----
 
+    @api_action(
+        methods={"http", "cli", "slash"},
+        http_method="POST",
+        http_path="/crons/jobs",
+        request_model=CronJobSpec,
+        slash_command="cron-create",
+    )
     async def create_or_replace_job(self, spec: CronJobSpec) -> None:
         async with self._lock:
             await self._repo.upsert_job(spec)
             if self._started:
                 await self._register_or_update(spec)
 
+    @api_action(
+        methods={"http", "cli", "slash"},
+        http_method="DELETE",
+        http_path="/crons/jobs/{job_id}",
+        slash_command="cron-delete",
+    )
     async def delete_job(self, job_id: str) -> bool:
         async with self._lock:
             if self._started and self._scheduler.get_job(job_id):
@@ -344,10 +366,9 @@ class CronManager:
                 task.get_name(),
                 repr(exc),
             )
-            # Push error to the console for the frontend to display.
-            # Agent cron jobs skip push bubbles.
+            # Push error to the console for the frontend to display
             session_id = job.dispatch.target.session_id
-            if session_id and job.task_type != "agent":
+            if session_id:
                 error_text = f"❌ Cron job [{job.name}] failed: {exc}"
                 asyncio.ensure_future(
                     push_store_append(session_id, error_text),
@@ -579,13 +600,14 @@ class CronManager:
     async def _heartbeat_callback(self) -> None:
         """Run one heartbeat (HEARTBEAT.md as query, optional dispatch)."""
         try:
-            # Get workspace_dir from runner if available
-            workspace_dir = None
-            if hasattr(self._runner, "workspace_dir"):
-                workspace_dir = self._runner.workspace_dir
+            workspace_dir = getattr(
+                self._workspace,
+                "workspace_dir",
+                None,
+            )
 
             await run_heartbeat_once(
-                runner=self._runner,
+                workspace=self._workspace,
                 channel_manager=self._channel_manager,
                 agent_id=self._agent_id,
                 workspace_dir=workspace_dir,
@@ -599,22 +621,13 @@ class CronManager:
     async def _dream_callback(self) -> None:
         """Run one dream-based memory optimization task."""
         try:
-            # Get workspace_dir from runner if available
-            workspace_dir = None
-            if hasattr(self._runner, "workspace_dir"):
-                workspace_dir = self._runner.workspace_dir
-
-            await self._runner.memory_manager.dream(
-                runner=self._runner,
-                channel_manager=self._channel_manager,
-                agent_id=self._agent_id,
-                workspace_dir=workspace_dir,
-            )
+            await self._workspace.memory_manager.dream()
+            logger.debug("Dream task executed successfully")
         except asyncio.CancelledError:
-            logger.info("dream cancelled")
+            logger.info("Dream task was cancelled")
             raise
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("dream run failed")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(f"Failed to execute dream task: {e}", exc_info=True)
 
     # pylint: disable-next=too-many-branches,too-many-statements
     async def _execute_once(

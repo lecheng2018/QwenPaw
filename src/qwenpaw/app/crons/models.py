@@ -165,7 +165,7 @@ class JobRuntimeSpec(BaseModel):
 
 
 class CronJobRequest(BaseModel):
-    """Passthrough payload to runner.stream_query(request=...).
+    """Passthrough payload to workspace.stream_query(request=...).
 
     This is aligned with AgentRequest(extra="allow"). We keep it permissive.
     """
