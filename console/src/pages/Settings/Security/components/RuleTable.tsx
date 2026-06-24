@@ -245,6 +245,7 @@ export function RuleTable({
           pagination={false}
           size="small"
           className={styles.ruleTable}
+          scroll={{ x: 600 }}
         />
       ),
     };
