@@ -267,13 +267,10 @@ class Provider(ProviderInfo, ABC):
         Models not listed receive sort_order = 9999 (they appear last).
         """
         id_to_index = {
-            model_id.strip(): i
-            for i, model_id in enumerate(ordered_model_ids)
+            model_id.strip(): i for i, model_id in enumerate(ordered_model_ids)
         }
         for model in self.models + self.extra_models:
-            model.sort_order = id_to_index.get(
-                model.id.strip(), 9999
-            )
+            model.sort_order = id_to_index.get(model.id.strip(), 9999)
         self.models.sort(key=lambda m: m.sort_order)
         self.extra_models.sort(key=lambda m: m.sort_order)
 
@@ -477,10 +474,12 @@ class Provider(ProviderInfo, ABC):
         # via two different import paths (e.g. PYTHONPATH + pip install).
         meta = self.meta or {}
         sorted_models = sorted(
-            self.models, key=lambda m: (m.sort_order, m.id),
+            self.models,
+            key=lambda m: (m.sort_order, m.id),
         )
         sorted_extra = sorted(
-            self.extra_models, key=lambda m: (m.sort_order, m.id),
+            self.extra_models,
+            key=lambda m: (m.sort_order, m.id),
         )
         return ProviderInfo(
             id=self.id,
