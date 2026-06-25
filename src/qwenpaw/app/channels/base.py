@@ -23,7 +23,7 @@ from typing import (
     TYPE_CHECKING,
 )
 
-from agentscope_runtime.engine.schemas.agent_schemas import (
+from qwenpaw.schemas import (
     RunStatus,
     ContentType,
     TextContent,
@@ -56,7 +56,7 @@ _TOOL_OUTPUT_MESSAGE_TYPES = {
 }
 
 if TYPE_CHECKING:
-    from agentscope_runtime.engine.schemas.agent_schemas import (
+    from qwenpaw.schemas import (
         AgentRequest,
         AgentResponse,
         Event,
@@ -624,7 +624,7 @@ class BaseChannel(ABC):
                 msg_id_to_stream_type,
                 streaming_buffers,
             )
-        if obj == "content" and status == RunStatus.InProgress:
+        if obj == "content":
             return await self._on_stream_content_delta(
                 request,
                 to_handle,
@@ -696,6 +696,58 @@ class BaseChannel(ABC):
             return False
         if stream_type == "reasoning" and self._filter_thinking:
             return True
+
+        # Detect content index change → split into a new streaming box
+        content_index = getattr(event, "index", 0) or 0
+        index_key = f"_stream_last_index_{stream_type}"
+        last_index = send_meta.get(index_key, 0)
+        if content_index != last_index and streaming_buffers.get(
+            stream_type,
+            "",
+        ):
+            # Finalize current streaming box before starting a new one
+            flush_meta = self._get_stream_flush_meta(
+                send_meta,
+                stream_type,
+            )
+            task = flush_meta.get("task")
+            if task and not task.done():
+                try:
+                    await asyncio.wait_for(
+                        task,
+                        timeout=self._STREAM_FLUSH_TIMEOUT_S,
+                    )
+                except (
+                    asyncio.TimeoutError,
+                    asyncio.CancelledError,
+                    Exception,
+                ):
+                    task.cancel()
+            send_meta.get("_stream_flush", {}).pop(
+                stream_type,
+                None,
+            )
+            accumulated = streaming_buffers.pop(stream_type, "")
+            await self.on_streaming_end(
+                request,
+                to_handle,
+                event,
+                send_meta,
+                stream_type,
+                accumulated_text=accumulated,
+            )
+            # Start a new streaming box
+            streaming_buffers[stream_type] = ""
+            await self.on_streaming_start(
+                request,
+                to_handle,
+                event,
+                send_meta,
+                stream_type,
+                accumulated_text="",
+            )
+        send_meta[index_key] = content_index
+
         delta_text = getattr(event, "text", "") or ""
         streaming_buffers[stream_type] = (
             streaming_buffers.get(stream_type, "") + delta_text
@@ -1018,10 +1070,11 @@ class BaseChannel(ABC):
     ) -> "AgentRequest":
         """
         Build AgentRequest from runtime content parts (Message content list).
-        Use agentscope_runtime Message/Content types; no intermediate envelope.
-        Subclasses call this after parsing native payload to content_parts.
+        Uses :mod:`qwenpaw.schemas` Message / Content types directly — no
+        intermediate envelope. Subclasses call this after parsing the
+        native payload into ``content_parts``.
         """
-        from agentscope_runtime.engine.schemas.agent_schemas import (
+        from qwenpaw.schemas import (
             AgentRequest,
             Message,
             Role,

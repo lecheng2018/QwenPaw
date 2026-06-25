@@ -853,6 +853,7 @@ export function RemoteModelManageModal({
       onCancel={handleClose}
       footer={null}
       width={800}
+      className={styles.modelManageModal}
       destroyOnHidden
     >
       <Input

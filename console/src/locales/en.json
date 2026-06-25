@@ -25,6 +25,7 @@
     "contentPlaceholder": "Enter content...",
     "help": "Help",
     "close": "Close",
+    "back": "Back",
     "actions": "Actions",
     "total": "Total {{count}}",
     "clear": "Clear",
@@ -392,7 +393,10 @@
     "configUpdateFailed": "Failed to update system prompt configuration",
     "attribution": "Workspace design partly inspired by the OpenClaw project — thank you! 🐾",
     "saveSuccess": "Saved successfully",
-    "saveFailed": "Save failed"
+    "saveFailed": "Save failed",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "unsaved": "Unsaved"
   },
   "agent": {
     "parent": "Settings",
@@ -595,7 +599,10 @@
     "exitBatch": "Exit Batch",
     "noSearchResults": "No skills found matching your search",
     "filterByTag": "Filter by tag",
-    "noTags": "No tags available"
+    "noTags": "No tags available",
+    "enabledSkills": "Enabled Skills",
+    "disabledSkills": "Disabled Skills",
+    "active": "active"
   },
   "skillPool": {
     "description": "Shared local skill pool for built-in skills and workspace uploads. External hub imports such as ClawHub or LobeHub are separate.",
@@ -716,11 +723,66 @@
     "deleteSuccess": "MCP client deleted successfully",
     "deleteError": "Failed to delete MCP client",
     "maskedFieldHint": "Sensitive fields are masked with ***. In-place edits on masked values are not supported — replace with the full new value to modify.",
-    "tools": "Tools",
+    "tools": "Tools & Permissions",
     "noTools": "No tools available from this MCP server",
     "toolsLoadError": "Failed to load tools from MCP server",
     "toolsConnecting": "MCP server is still connecting, please try again in a moment",
-    "toolSchema": "Input Schema",
+    "toolSchema": "Description & Parameters",
+    "access": {
+      "title": "Access",
+      "button": "Access",
+      "summary": "MCP access policy",
+      "clientSection": "Overall Access",
+      "toolSection": "Tool Access",
+      "default": "Default",
+      "sourceType": "Source",
+      "sourceValue": "Source Value",
+      "sourceValueAllChannels": "All Channels",
+      "subjectType": "Object",
+      "subjectValue": "Object Value",
+      "effectLabel": "Policy",
+      "source": {
+        "channel": "Channel"
+      },
+      "subjectTypeOption": {
+        "all": "All",
+        "user": "User"
+      },
+      "sourceValuePlaceholder": {
+        "channel": "console / dingtalk"
+      },
+      "subjectValuePlaceholder": "e.g. alice",
+      "subjectValuePlaceholderSelectedSource": "user ID in selected source",
+      "subjectValuePlaceholderScoped": "{{source}} user ID",
+      "subjectValueAll": "All",
+      "recentUserPlaceholder": "User ID is scoped to the selected source; type or select again",
+      "noRecentUsers": "No recent users for this source; type a user ID manually",
+      "ambiguousUserSourceWarning": "User IDs are scoped by source. Select a specific channel to avoid cross-channel matches.",
+      "unknownUserValueWarning": "This user ID is not in recent active users. Saving is allowed.",
+      "validation": {
+        "missingUserValue": "Select a specific source and enter a valid user ID.",
+        "ambiguousUserSource": "User rules must target a specific channel, not all channels.",
+        "unknownUserValue": "This user ID is not in recent active users. Saving is allowed."
+      },
+      "addRule": "Add Rule",
+      "deleteRule": "Delete Rule",
+      "noClientRules": "No rules",
+      "noRules": "No rules, uses default policy",
+      "inherit": "Inherit ({{effect}})",
+      "stale": "Not found",
+      "disabledTools": "This MCP client is disabled; saved access rules can still be edited.",
+      "discardTitle": "Discard unsaved changes?",
+      "discardContent": "Unsaved access policy changes will be lost.",
+      "loadError": "Failed to load MCP access policy",
+      "saveSuccess": "MCP access policy saved",
+      "saveError": "Failed to save MCP access policy",
+      "unmanagedRules": "{{count}} advanced rule(s)",
+      "effect": {
+        "allow": "Allow",
+        "ask": "Ask",
+        "deny": "Deny"
+      }
+    },
     "tab": {
       "json": "JSON Import",
       "form": "Form Mode"
@@ -1084,6 +1146,8 @@
     "qqQrcodeExpired": "The QR code has expired; please retrieve a new one",
     "atSenderOnReply": "@ Sender on Reply",
     "atSenderOnReplyTooltip": "When enabled, the bot will @mention the sender in its first reply message in group chats. Note: In card mode, @mention only works for enterprise internal members.",
+    "dingtalkEndpoint": "API Endpoint",
+    "dingtalkEndpointTooltip": "Custom API endpoint for private DingTalk deployments. Leave empty to use the official default.",
     "wecomCancelled": "Authorization cancelled",
     "wecomAuthFailed": "Authorization failed: {{msg}}",
     "voiceSetupGuide": "Set up a Twilio account, purchase a phone number, then enter your credentials below. Find your Account SID and Auth Token on the Twilio Console dashboard. The Phone Number SID is listed under Phone Numbers → Active Numbers.",
@@ -1190,7 +1254,13 @@
     "batchDismissConfirm": "Dismiss {{count}} selected users?",
     "batchSuccess": "{{count}} users processed successfully",
     "batchRemove": "Delete",
-    "batchRemoveConfirm": "Delete {{count}} selected users?"
+    "batchRemoveConfirm": "Delete {{count}} selected users?",
+    "enabledSection": "Enabled",
+    "enabledCount": "{{count}}",
+    "availableSection": "Available",
+    "enableAction": "Enable",
+    "noEnabledChannels": "No enabled channels",
+    "goEnableChannels": "Enable channels"
   },
   "sessions": {
     "title": "Sessions",
@@ -1373,6 +1443,7 @@
     "protocolHint": "Choose the provider API protocol for this configuration.",
     "selectProtocol": "Please select a protocol",
     "protocolOpenAI": "OpenAI-compatible (Chat Completions)",
+    "protocolOpenAIResponse": "OpenAI-compatible (Response API)",
     "protocolAnthropic": "Anthropic (Messages API)",
     "currentKey": "Current: {{key}}",
     "startsWith": "Starts with \"{{prefix}}\"",
@@ -1796,8 +1867,6 @@
     "tokenCountEstimateDivisorTooltip": "Divisor for byte-based token estimation (tokens ≈ byte_length / divisor). Recommended value: 3.75 ~ 4.",
     "tokenCountEstimateDivisorRequired": "Estimate divisor is required",
     "tokenCountEstimateDivisorMin": "Estimate divisor must be between 2 and 5",
-    "compactWithThinkingBlock": "Include Thinking Blocks",
-    "compactWithThinkingBlockTooltip": "Whether to include model thinking blocks when compacting the context",
     "toolResultCompactTitle": "Tool Result Compact Config",
     "toolResultCompactEnabled": "Enable Tool Result Compaction",
     "toolResultCompactEnabledTooltip": "Compact oversized tool call results to save context space",
@@ -1813,9 +1882,8 @@
     "autoMaxResultsTooltip": "Maximum number of results returned when auto memory search is enabled",
     "autoMaxResultsRequired": "Max results is required",
     "autoMaxResultsMin": "Max results must be at least 1",
-    "autoMinScore": "Auto Search Min Score",
-    "autoMinScoreTooltip": "Minimum relevance score threshold (0–1) when auto memory search is enabled",
-    "autoMinScoreRequired": "Min score is required",
+    "autoMemorySearchPersistToContext": "Persist Search Result to Context",
+    "autoMemorySearchPersistToContextTooltip": "When enabled, the auto memory search tool call and result are saved into the conversation context. Disable it to use the search result only for the current model call.",
     "embeddingConfigTitle": "Embedding Model Config",
     "embeddingBackend": "Backend",
     "embeddingBackendTooltip": "Embedding backend provider, e.g. openai",
@@ -1871,6 +1939,8 @@
     "embeddingEnableHint": "Fill in both Base URL and Model Name to enable the embedding feature. API Key is optional.",
     "rebuildMemoryIndexOnStart": "Rebuild Memory Index on Start",
     "rebuildMemoryIndexOnStartTooltip": "Clear and rebuild the memory search index when the agent starts. Disable to skip re-indexing and only watch for new file changes (faster startup, but index may be out of sync).",
+    "enableSearchRawLog": "Enable Raw Log Search",
+    "enableSearchRawLogTooltip": "Include raw conversation logs in memory search. This may increase search scope and index size.",
     "toolResultCompactRecentGtOld": "Recent messages threshold must be greater than or equal to the older messages threshold",
     "lightContextTitle": "Context Management",
     "remeLightMemoryTitle": "Long-term Memory",
@@ -1886,8 +1956,6 @@
     "autoMemoryInterval": "Auto Memory Interval",
     "autoMemoryIntervalTooltip": "Trigger auto memory every N user queries. Leave empty to disable periodic auto memory. 1 means auto memory after every query, 2 means every 2 queries, etc. Warning: setting too low (e.g., 1-3) may cause high token usage and heavy background task burden. Recommended: 5 or 10.",
     "autoMemoryIntervalPlaceholder": "Leave empty to disable periodic auto memory",
-    "recursiveFileWatcher": "Recursive File Watcher",
-    "recursiveFileWatcherTooltip": "Watch the memory directory recursively. Enable to include files in subdirectories like memory/subdirectory/* in vector search indexing.",
     "contextManagerBackend": "Context Manager Backend",
     "contextManagerBackendTooltip": "Backend type for the context manager. Currently only Light is supported.",
     "backendRestartWarning": "Switching backends does not support hot reload. Save and restart QwenPaw for changes to take effect.",
@@ -1934,7 +2002,13 @@
     "configured": "Configured",
     "requiresConfig": "Requires configuration",
     "configSaved": "Configuration saved",
-    "configSaveError": "Failed to save configuration"
+    "configSaveError": "Failed to save configuration",
+    "active": "active",
+    "available": "Available",
+    "noEnabled": "No tools enabled",
+    "goEnableBtn": "Go enable",
+    "configureAction": "Configure →",
+    "enableAction": "Enable →"
   },
   "modelConfig": {
     "promptTitle": "LLM Model Required — Select in Chat After Configuration",
@@ -2349,6 +2423,7 @@
     "approve": "Approve",
     "deny": "Deny",
     "source": "Source",
+    "builtinSource": "Built-in",
     "subSession": "Sub-Agent",
     "approved": "Tool call approved",
     "denied": "Tool call denied",
@@ -2564,7 +2639,7 @@
     "getCurrentTime": "Get current time",
     "setTimezone": "Set {{timezone}}",
     "getTokenUsage": "Query token usage",
-    "memorySearch": "Search {{query}}",
+    "memorySearch": "Search memory {{query}}",
     "memorySearchDefault": "Search memory",
     "listAgents": "List agents",
     "chatWithAgent": "Chat {{agent}}",
