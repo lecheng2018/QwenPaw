@@ -2002,7 +2002,23 @@
       "restApiKey": "REST API Key",
       "memoryIsolation": "Memory Isolation (per-agent)",
       "searchTimeout": "Search Timeout"
-    }
+    },
+    "rerankerConfigCollapseLabel": "Reranker Config",
+    "rerankerEnabled": "Enable Reranker",
+    "rerankerEnabledTooltip": "Re-rank memory search results to put the most relevant items first. Requires API Key.",
+    "rerankerApiKey": "API Key",
+    "rerankerApiKeyTooltip": "API key for the reranker provider",
+    "rerankerApiKeyPlaceholder": "sk-...",
+    "rerankerBaseUrl": "Base URL",
+    "rerankerBaseUrlTooltip": "Base URL for the reranker API",
+    "rerankerBaseUrlPlaceholder": "https://api.siliconflow.cn/v1/rerank",
+    "rerankerModelName": "Model Name",
+    "rerankerModelNameTooltip": "Reranker model name",
+    "rerankerModelNamePlaceholder": "BAAI/bge-reranker-v2-m3",
+    "rerankerCandidateMultiplier": "Candidate Multiplier",
+    "rerankerCandidateMultiplierTooltip": "Fetch N times more candidates before reranking so the reranker has more to choose from.",
+    "rerankerCandidateMultiplierRequired": "Candidate multiplier is required",
+    "rerankerCandidateMultiplierMin": "Candidate multiplier must be at least 1"
   },
   "tools": {
     "title": "Built-in Tools",
