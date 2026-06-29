@@ -554,7 +554,8 @@ class ReMeLightMemoryManager(BaseMemoryManager):
 
         agent_config = load_agent_config(self.agent_id)
         cfg = agent_config.running.reme_light_memory_config.reranker_config
-        url = cfg.base_url.rstrip("/")
+        url = (cfg.base_url or "https://api.siliconflow.cn/v1/rerank").rstrip("/")
+        model_name = cfg.model_name or "BAAI/bge-reranker-v2-m3"
         if not url.endswith("/rerank"):
             url = url + "/rerank"
         headers = {
@@ -562,7 +563,7 @@ class ReMeLightMemoryManager(BaseMemoryManager):
             "Content-Type": "application/json",
         }
         payload = {
-            "model": cfg.model_name,
+            "model": model_name,
             "query": query,
             "documents": passages,
             "return_documents": False,

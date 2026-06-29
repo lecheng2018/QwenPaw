@@ -598,12 +598,12 @@ class RerankerModelConfig(BaseModel):
         description="API key for reranker provider",
     )
     base_url: str = Field(
-        default="https://api.siliconflow.cn/v1/rerank",
-        description="Base URL for reranker API",
+        default="",
+        description="Base URL for reranker API (default: https://api.siliconflow.cn/v1/rerank)",
     )
     model_name: str = Field(
-        default="BAAI/bge-reranker-v2-m3",
-        description="Reranker model name",
+        default="",
+        description="Reranker model name (default: BAAI/bge-reranker-v2-m3)",
     )
     candidate_multiplier: int = Field(
         default=3,
