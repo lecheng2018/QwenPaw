@@ -86,7 +86,7 @@ export function AgentTable({
       title: t("agent.name"),
       dataIndex: "name",
       key: "name",
-      width: 300,
+      width: 220,
       render: (_text: string, record: AgentSummary) => (
         <Space>
           <RobotOutlined
@@ -111,12 +111,17 @@ export function AgentTable({
       title: t("agent.description"),
       dataIndex: "description",
       key: "description",
-      ellipsis: true,
+      ellipsis: false,
+      width: 400,
+      render: (text: string) => (
+        <div className={styles.descriptionCell}>{text || "-"}</div>
+      ),
     },
     {
       title: t("agent.workspace"),
       dataIndex: "workspace_dir",
       key: "workspace_dir",
+      width: 180,
       ellipsis: true,
     },
     {
@@ -147,6 +152,7 @@ export function AgentTable({
     {
       title: t("common.actions"),
       key: "actions",
+      width: 160,
       render: (_: any, record: AgentSummary) => (
         <Space>
           <Button
@@ -240,6 +246,8 @@ export function AgentTable({
               },
             }}
             pagination={false}
+            tableLayout="fixed"
+            scroll={{ x: "max-content" }}
           />
         </SortableContext>
       </DndContext>
