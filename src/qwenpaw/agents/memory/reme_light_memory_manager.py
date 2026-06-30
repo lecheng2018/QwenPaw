@@ -18,12 +18,18 @@ from agentscope.message import Msg, TextBlock, ToolResultBlock, ToolUseBlock
 from agentscope.tool import Toolkit, ToolResponse
 
 from .base_memory_manager import BaseMemoryManager, memory_registry
-from .prompts import (
-    MEMORY_GUIDANCE_ZH,
-    MEMORY_GUIDANCE_EN,
-    DREAM_OPTIMIZATION_ZH,
-    DREAM_OPTIMIZATION_EN,
-)
+from .prompts import build_memory_guidance_prompt
+
+#: Dream optimization prompts — used by the ``dream_cron`` background task.
+DREAM_OPTIMIZATION_ZH = """\
+基于当前记忆和以下日期 {current_date}，请回忆并整理重要的信息。
+将你的发现写入工作目录下的记忆文件中。
+"""
+
+DREAM_OPTIMIZATION_EN = """\
+Based on current memory and the date {current_date}, recall and organize important insights.
+Write your findings into the memory files under the working directory.
+"""
 from ..model_factory import create_model_and_formatter
 from ..utils import get_token_counter
 from ...config import load_config
@@ -374,8 +380,7 @@ class ReMeLightMemoryManager(BaseMemoryManager):
 
     def get_memory_prompt(self, language: str = "zh") -> str:
         """Return the memory guidance prompt for the system prompt."""
-        prompts = {"zh": MEMORY_GUIDANCE_ZH, "en": MEMORY_GUIDANCE_EN}
-        return prompts.get(language, MEMORY_GUIDANCE_EN)
+        return build_memory_guidance_prompt(language, daily_dir="memory")
 
     def list_memory_tools(self):
         """Return memory tool functions to register with the agent toolkit."""
@@ -511,6 +516,39 @@ class ReMeLightMemoryManager(BaseMemoryManager):
 
         return response
 
+    @staticmethod
+    async def _call_rerank_api(
+        url: str,
+        payload: dict,
+        api_key: str,
+    ) -> dict | None:
+        """Call the reranker API and return parsed JSON, or None on failure."""
+        import aiohttp
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    url,
+                    json=payload,
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=30),
+                ) as resp:
+                    if resp.status != 200:
+                        logger.warning(
+                            "Reranker API HTTP %s: %s",
+                            resp.status,
+                            await resp.text(),
+                        )
+                        return None
+                    return await resp.json()
+        except Exception as exc:
+            logger.warning("Reranker request failed: %s", exc)
+            return None
+
     async def _rerank_search_results(
         self,
         query: str,
@@ -552,9 +590,6 @@ class ReMeLightMemoryManager(BaseMemoryManager):
         if len(passages) <= 1:
             return None
 
-        # Call SiliconFlow /v1/rerank via aiohttp (lazy import)
-        import aiohttp
-
         agent_config = load_agent_config(self.agent_id)
         cfg = agent_config.running.reme_light_memory_config.reranker_config
         url = (cfg.base_url or "https://api.siliconflow.cn/v1/rerank").rstrip(
@@ -563,10 +598,6 @@ class ReMeLightMemoryManager(BaseMemoryManager):
         model_name = cfg.model_name or "BAAI/bge-reranker-v2-m3"
         if not url.endswith("/rerank"):
             url = url + "/rerank"
-        headers = {
-            "Authorization": f"Bearer {cfg.api_key}",
-            "Content-Type": "application/json",
-        }
         payload = {
             "model": model_name,
             "query": query,
@@ -574,24 +605,8 @@ class ReMeLightMemoryManager(BaseMemoryManager):
             "return_documents": False,
         }
 
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    url,
-                    json=payload,
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=30),
-                ) as resp:
-                    if resp.status != 200:
-                        logger.warning(
-                            "Reranker API HTTP %s: %s",
-                            resp.status,
-                            await resp.text(),
-                        )
-                        return None
-                    data = await resp.json()
-        except Exception as exc:
-            logger.warning("Reranker request failed: %s", exc)
+        data = await self._call_rerank_api(url, payload, cfg.api_key)
+        if not data:
             return None
 
         reranked = sorted(
@@ -786,7 +801,7 @@ class ReMeLightMemoryManager(BaseMemoryManager):
     async def summarize_when_compact(
         self,
         messages: list[Msg],
-        **kwargs,
+        **kwargs,  # pylint: disable=unused-argument
     ) -> None:
         """Schedule summarize task if summarize_when_compact is enabled."""
         if not messages:
