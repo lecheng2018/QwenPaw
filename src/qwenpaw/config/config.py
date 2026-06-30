@@ -584,6 +584,34 @@ class AutoMemorySearchConfig(BaseModel):
     )
 
 
+class RerankerModelConfig(BaseModel):
+    """Reranker model configuration for memory search re-ranking."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = Field(
+        default=False,
+        description="Whether to enable reranker for memory search results",
+    )
+    api_key: str = Field(
+        default="",
+        description="API key for reranker provider",
+    )
+    base_url: str = Field(
+        default="",
+        description="Reranker base URL, defaults to siliconflow.cn",
+    )
+    model_name: str = Field(
+        default="",
+        description="Reranker model name (default: BAAI/bge-reranker-v2-m3)",
+    )
+    candidate_multiplier: int = Field(
+        default=3,
+        ge=1,
+        description="Fetch N times more candidates before reranking",
+    )
+
+
 class EmbeddingModelConfig(BaseModel):
     """Embedding model configuration."""
 
@@ -719,6 +747,11 @@ class ReMeLightMemoryConfig(BaseModel):
 
     embedding_model_config: EmbeddingModelConfig = Field(
         default_factory=EmbeddingModelConfig,
+    )
+
+    reranker_config: RerankerModelConfig = Field(
+        default_factory=RerankerModelConfig,
+        description="Reranker config for memory search re-ranking",
     )
 
     rebuild_memory_index_on_start: bool = Field(
