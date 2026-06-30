@@ -554,12 +554,21 @@ class ReMeLightMemoryManager(BaseMemoryManager):
             return None
 
     @staticmethod
-    def _extract_passages(response: ToolResponse) -> tuple[list, list[str], list[int]] | None:
-        """Parse search response into (results, passages, valid_idx_map) or None."""
+    def _extract_passages(
+        response: ToolResponse,
+    ) -> tuple[list, list[str], list[int]] | None:
+        """Parse search response into (results, passages, valid_idx_map).
+
+        Returns ``None`` if the response is malformed or unusable.
+        """
         if not response.content:
             return None
         item = response.content[0]
-        text = item.get("text", "") if isinstance(item, dict) else getattr(item, "text", "")
+        text = (
+            item.get("text", "")
+            if isinstance(item, dict)
+            else getattr(item, "text", "")
+        )
         if not text:
             return None
         try:
@@ -597,7 +606,9 @@ class ReMeLightMemoryManager(BaseMemoryManager):
 
         agent_config = load_agent_config(self.agent_id)
         cfg = agent_config.running.reme_light_memory_config.reranker_config
-        url = (cfg.base_url or "https://api.siliconflow.cn/v1/rerank").rstrip("/")
+        url = (cfg.base_url or "https://api.siliconflow.cn/v1/rerank").rstrip(
+            "/"
+        )
         model_name = cfg.model_name or "BAAI/bge-reranker-v2-m3"
         if not url.endswith("/rerank"):
             url = url + "/rerank"
@@ -634,7 +645,9 @@ class ReMeLightMemoryManager(BaseMemoryManager):
 
         if len(reranked_results) < final_limit:
             remaining = [r for i, r in enumerate(results) if i not in seen]
-            reranked_results.extend(remaining[: final_limit - len(reranked_results)])
+            reranked_results.extend(
+                remaining[: final_limit - len(reranked_results)]
+            )
 
         new_text = json.dumps(reranked_results, ensure_ascii=False)
         return ToolResponse(
