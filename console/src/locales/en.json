@@ -2012,7 +2012,23 @@
       "restApiKey": "REST API Key",
       "memoryIsolation": "Memory Isolation (per-agent)",
       "searchTimeout": "Search Timeout"
-    }
+    },
+    "rerankerConfigCollapseLabel": "Search Result Reranker",
+    "rerankerEnabled": "Enable Reranker",
+    "rerankerEnabledTooltip": "When enabled, search results will be reranked by an LLM model for better relevance",
+    "rerankerModelName": "Model Name",
+    "rerankerModelNameTooltip": "Reranker model name, e.g. bge-reranker-v2-gemma, Qwen3-Reranker-8B",
+    "rerankerModelNamePlaceholder": "e.g. bge-reranker-v2-gemma",
+    "rerankerBaseUrl": "API Base URL",
+    "rerankerBaseUrlTooltip": "OpenAI-compatible API base URL",
+    "rerankerBaseUrlPlaceholder": "e.g. https://api.siliconflow.cn/v1",
+    "rerankerApiKey": "API Key",
+    "rerankerApiKeyTooltip": "API key for the reranker provider",
+    "rerankerApiKeyPlaceholder": "Enter API key",
+    "rerankerTemperature": "Temperature",
+    "rerankerTemperatureTooltip": "Sampling temperature for reranking (0-2)",
+    "rerankerTemperaturePlaceholder": "0.0",
+    "rerankerInfoHint": "After the initial hybrid search, an extra LLM API call re-orders results for better relevance. Requires model_name, base_url, and api_key to be configured correctly. Note: each search triggers an extra API call that may incur costs."
   },
   "tools": {
     "title": "Built-in Tools",
