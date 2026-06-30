@@ -4,6 +4,7 @@
 Provides RESTful API for managing multiple agent instances.
 """
 
+import copy
 import json
 import logging
 from pathlib import Path
@@ -364,6 +365,21 @@ async def create_agent(
     return agent_ref
 
 
+def _deep_merge_dict(base: dict, override: dict) -> dict:
+    """Recursively merge override into base, returning a new dict."""
+    result = copy.deepcopy(base)
+    for key, value in override.items():
+        if (
+            key in result
+            and isinstance(result[key], dict)
+            and isinstance(value, dict)
+        ):
+            result[key] = _deep_merge_dict(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
 @router.put(
     "/{agentId}",
     response_model=AgentProfileConfig,
@@ -388,7 +404,18 @@ async def update_agent(
 
     update_data = agent_config.model_dump(exclude_unset=True)
     for key, value in update_data.items():
-        if key != "id":
+        if key == "id":
+            continue
+        if key == "running" and isinstance(value, dict):
+            # Deep-merge nested Pydantic models (e.g. reme_light_memory_config)
+            existing_running = existing_config.running.model_dump()
+            merged_running = _deep_merge_dict(existing_running, value)
+            setattr(
+                existing_config,
+                "running",
+                type(existing_config.running)(**merged_running),
+            )
+        else:
             setattr(existing_config, key, value)
 
     existing_config.id = agentId
