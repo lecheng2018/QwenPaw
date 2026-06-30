@@ -19,6 +19,18 @@ from agentscope.tool import Toolkit, ToolResponse
 
 from .base_memory_manager import BaseMemoryManager, memory_registry
 from .prompts import build_memory_guidance_prompt
+from ..model_factory import create_model_and_formatter
+from ..utils import get_token_counter
+from ...config import load_config
+from ...config.config import (
+    get_model_max_input_length,
+    load_agent_config,
+)
+from ...config.context import (
+    set_current_recent_max_bytes,
+    set_current_workspace_dir,
+)
+from ...constant import EnvVarLoader
 
 #: Dream optimization prompts — used by the ``dream_cron`` background task.
 DREAM_OPTIMIZATION_ZH = """\
@@ -27,18 +39,10 @@ DREAM_OPTIMIZATION_ZH = """\
 """
 
 DREAM_OPTIMIZATION_EN = """\
-Based on current memory and the date {current_date}, recall and organize important insights.
-Write your findings into the memory files under the working directory.
+Based on current memory and the date {current_date}, recall and organize
+important insights. Write your findings into the memory files under
+the working directory.
 """
-from ..model_factory import create_model_and_formatter
-from ..utils import get_token_counter
-from ...config import load_config
-from ...config.config import load_agent_config, get_model_max_input_length
-from ...config.context import (
-    set_current_workspace_dir,
-    set_current_recent_max_bytes,
-)
-from ...constant import EnvVarLoader
 
 logger = logging.getLogger(__name__)
 
@@ -549,6 +553,32 @@ class ReMeLightMemoryManager(BaseMemoryManager):
             logger.warning("Reranker request failed: %s", exc)
             return None
 
+    @staticmethod
+    def _extract_passages(response: ToolResponse) -> tuple[list, list[str], list[int]] | None:
+        """Parse search response into (results, passages, valid_idx_map) or None."""
+        if not response.content:
+            return None
+        item = response.content[0]
+        text = item.get("text", "") if isinstance(item, dict) else getattr(item, "text", "")
+        if not text:
+            return None
+        try:
+            results = json.loads(text)
+        except (json.JSONDecodeError, TypeError):
+            return None
+        if not isinstance(results, list) or len(results) <= 1:
+            return None
+        passages: list[str] = []
+        valid_idx_map: list[int] = []
+        for i, r in enumerate(results):
+            snippet = r.get("snippet") or r.get("content") or ""
+            if isinstance(snippet, str) and snippet.strip():
+                passages.append(snippet.strip()[:512])
+                valid_idx_map.append(i)
+        if len(passages) <= 1:
+            return None
+        return results, passages, valid_idx_map
+
     async def _rerank_search_results(
         self,
         query: str,
@@ -560,41 +590,14 @@ class ReMeLightMemoryManager(BaseMemoryManager):
         Returns a new ``ToolResponse`` with top *final_limit* items, or
         ``None`` if reranking is unavailable or fails (caller falls back).
         """
-        if not response.content:
+        parsed = self._extract_passages(response)
+        if parsed is None:
             return None
-        text = (
-            response.content[0].get("text", "")
-            if isinstance(response.content[0], dict)
-            else getattr(response.content[0], "text", "")
-        )
-        if not text:
-            return None
-
-        try:
-            results = json.loads(text)
-        except (json.JSONDecodeError, TypeError):
-            return None
-
-        if not isinstance(results, list) or len(results) <= 1:
-            return None
-
-        # Build passages for reranking
-        passages: list[str] = []
-        valid_idx_map: list[int] = []
-        for i, r in enumerate(results):
-            snippet = r.get("snippet") or r.get("content") or ""
-            if isinstance(snippet, str) and snippet.strip():
-                passages.append(snippet.strip()[:512])
-                valid_idx_map.append(i)
-
-        if len(passages) <= 1:
-            return None
+        results, passages, valid_idx_map = parsed
 
         agent_config = load_agent_config(self.agent_id)
         cfg = agent_config.running.reme_light_memory_config.reranker_config
-        url = (cfg.base_url or "https://api.siliconflow.cn/v1/rerank").rstrip(
-            "/",
-        )
+        url = (cfg.base_url or "https://api.siliconflow.cn/v1/rerank").rstrip("/")
         model_name = cfg.model_name or "BAAI/bge-reranker-v2-m3"
         if not url.endswith("/rerank"):
             url = url + "/rerank"
@@ -615,7 +618,6 @@ class ReMeLightMemoryManager(BaseMemoryManager):
             reverse=True,
         )
 
-        # Reconstruct result list from reranker order
         reranked_results: list[dict] = []
         seen: set[int] = set()
         for item in reranked:
@@ -630,20 +632,13 @@ class ReMeLightMemoryManager(BaseMemoryManager):
             if len(reranked_results) >= final_limit:
                 break
 
-        # Append any remaining original results to fill quota
         if len(reranked_results) < final_limit:
-            for i, r in enumerate(results):
-                if i not in seen:
-                    reranked_results.append(r)
-                    seen.add(i)
-                    if len(reranked_results) >= final_limit:
-                        break
+            remaining = [r for i, r in enumerate(results) if i not in seen]
+            reranked_results.extend(remaining[: final_limit - len(reranked_results)])
 
         new_text = json.dumps(reranked_results, ensure_ascii=False)
         return ToolResponse(
-            content=[
-                TextBlock(type="text", text=new_text),
-            ],
+            content=[TextBlock(type="text", text=new_text)],
         )
 
     async def summarize(self, messages: list[Msg], **_kwargs) -> str:
