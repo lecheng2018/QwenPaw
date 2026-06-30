@@ -607,7 +607,7 @@ class ReMeLightMemoryManager(BaseMemoryManager):
         agent_config = load_agent_config(self.agent_id)
         cfg = agent_config.running.reme_light_memory_config.reranker_config
         url = (cfg.base_url or "https://api.siliconflow.cn/v1/rerank").rstrip(
-            "/"
+            "/",
         )
         model_name = cfg.model_name or "BAAI/bge-reranker-v2-m3"
         if not url.endswith("/rerank"):
@@ -646,7 +646,7 @@ class ReMeLightMemoryManager(BaseMemoryManager):
         if len(reranked_results) < final_limit:
             remaining = [r for i, r in enumerate(results) if i not in seen]
             reranked_results.extend(
-                remaining[: final_limit - len(reranked_results)]
+                remaining[: final_limit - len(reranked_results)],
             )
 
         new_text = json.dumps(reranked_results, ensure_ascii=False)
