@@ -12,6 +12,7 @@ import uuid
 from contextlib import suppress
 from typing import Any, TYPE_CHECKING
 
+import httpx
 from agentscope.message import Msg, TextBlock
 from agentscope.message import ToolCallBlock, ToolCallState
 from agentscope.message import ToolResultBlock, ToolResultState
@@ -28,7 +29,11 @@ from ...constant import (
     AUTO_MEMORY_SEARCH_TEXT,
     QWENPAW_MESSAGE_TAG_KEY,
 )
-from ...config.config import load_agent_config, AgentProfileConfig
+from ...config.config import (
+    load_agent_config,
+    AgentProfileConfig,
+    RerankerConfig,
+)
 
 if TYPE_CHECKING:
     from reme import ReMe
@@ -64,6 +69,7 @@ class ReMeLightMemoryManager(BaseMemoryManager):
     def __init__(self, working_dir: str, agent_id: str):
         super().__init__(working_dir=working_dir, agent_id=agent_id)
         self._reme: "ReMe | None" = None
+        self._reranker_config_cache: RerankerConfig | None = None
         logger.info(
             "ReMeLightMemoryManager init: agent_id=%s working_dir=%s",
             agent_id,
@@ -293,9 +299,11 @@ class ReMeLightMemoryManager(BaseMemoryManager):
                 name,
                 event.get("id"),
                 event.get("status"),
-                response_metadata.get("modified")
-                if isinstance(response_metadata, dict)
-                else None,
+                (
+                    response_metadata.get("modified")
+                    if isinstance(response_metadata, dict)
+                    else None
+                ),
             )
             return True
         except Exception:  # pylint: disable=broad-except
@@ -367,10 +375,173 @@ class ReMeLightMemoryManager(BaseMemoryManager):
         if response is None:
             return _tool_chunk("ReMe is not started.", ok=False)
 
+        # Apply reranker if configured
+        if response.success and response.metadata.get("results"):
+            reranker_config = self._get_reranker_config()
+            if reranker_config:
+                try:
+                    await self._rerank_search_results(
+                        query,
+                        response,
+                        reranker_config,
+                    )
+                except Exception:
+                    logger.warning(
+                        "[rerank] failed, using original order",
+                        exc_info=True,
+                    )
+
         answer = str(response.answer or "").strip()
         if not answer:
             answer = NO_MEMORY_RESULTS
         return _tool_chunk(answer, ok=response.success)
+
+    async def _rerank_search_results(
+        self,
+        query: str,
+        response: "Response",
+        config: RerankerConfig,
+    ) -> None:
+        """Re-order search results using a dedicated reranker API."""
+        results = response.metadata.get("results")
+        if not results or len(results) <= 1:
+            return
+
+        # Truncate long texts to 500 chars each for the reranker call
+        texts: list[str] = [r.get("text", "")[:500] for r in results]
+
+        new_order = await self._call_reranker_api(query, texts, config)
+        if not new_order or len(new_order) != len(results):
+            return
+
+        reordered: list[dict] = []
+        for idx in new_order:
+            if 0 <= idx < len(results):
+                reordered.append(results[idx])
+
+        if len(reordered) != len(results):
+            return
+
+        response.metadata["results"] = reordered
+
+        # Rebuild answer text (same format as search_step)
+        answer_lines: list[str] = []
+        for r in reordered:
+            path = r.get("path", "")
+            start_line = r.get("start_line", 0)
+            end_line = r.get("end_line", 0)
+            score = r.get("score", 0.0)
+            text = r.get("text", "")
+            header = (
+                f"========== {path}:{start_line}-{end_line} "
+                f"[score={score:.4f}] =========="
+            )
+            answer_lines.append(f"{header}\n{text}")
+        response.answer = "\n".join(answer_lines)
+
+        logger.info(
+            "[rerank] reordered %d results with model=%s",
+            len(results),
+            config.model_name,
+        )
+
+    def _get_reranker_config(self) -> RerankerConfig | None:
+        """Return cached reranker config, or None if not enabled.
+
+        Config is cached on first access and refreshed when the agent
+        config is reloaded (via `_refresh_config_cache`).
+        """
+        if self._reranker_config_cache is not None:
+            return self._reranker_config_cache
+
+        try:
+            agent_cfg = load_agent_config(self.agent_id)
+            cfg = agent_cfg.running.reme_light_memory_config.reranker_config
+            if cfg and cfg.enabled and cfg.model_name:
+                self._reranker_config_cache = cfg
+                return cfg
+        except Exception:
+            logger.warning("[rerank] failed to load config", exc_info=True)
+
+        self._reranker_config_cache = None
+        return None
+
+    def _refresh_config_cache(self) -> None:
+        """Invalidate cached reranker config (call after config reload)."""
+        self._reranker_config_cache = None
+
+    async def _call_reranker_api(
+        self,
+        query: str,
+        documents: list[str],
+        config: RerankerConfig,
+    ) -> list[int] | None:
+        """Call a reranker API to score and reorder documents by relevance.
+
+        Uses the standard OpenAI-compatible reranker endpoint::
+
+            POST {base_url}/rerank
+            {
+                "model": "...",
+                "query": "...",
+                "documents": ["...", ...],
+                "top_n": N
+            }
+
+        Returns a list of indices sorted by relevance (most relevant first),
+        or ``None`` on failure.
+        """
+        if not config.base_url:
+            logger.warning("[rerank] base_url not configured")
+            return None
+        if not query or not documents:
+            return None
+
+        base_url = config.base_url.rstrip("/")
+        url = f"{base_url}/rerank"
+
+        payload: dict[str, Any] = {
+            "model": config.model_name,
+            "query": query,
+            "documents": documents,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(
+                    url,
+                    headers={
+                        "Authorization": f"Bearer {config.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                )
+            resp.raise_for_status()
+            data = resp.json()
+
+            # Reranker response format: { "results": [{"index": 0, "relevance_score": 0.99}, ...] }
+            results = data.get("results", [])
+            if not results:
+                return None
+
+            # Sort by relevance score descending
+            # Some providers use "relevance_score", others use "score"
+            scored = []
+            for i, r in enumerate(results):
+                score_val = r.get("relevance_score") or r.get("score") or 0.0
+                scored.append((r.get("index", i), score_val))
+            scored.sort(key=lambda x: x[1], reverse=True)
+
+            return [idx for idx, _ in scored]
+        except httpx.TimeoutException:
+            logger.warning("[rerank] API timeout")
+            return None
+        except httpx.RequestError as e:
+            logger.warning("[rerank] HTTP error: %s", e)
+            return None
+        except Exception as e:
+            logger.warning("[rerank] unexpected error: %s", e)
+            return None
 
     async def summarize(
         self,
