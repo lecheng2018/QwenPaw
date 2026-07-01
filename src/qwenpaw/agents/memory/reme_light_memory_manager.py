@@ -519,7 +519,7 @@ class ReMeLightMemoryManager(BaseMemoryManager):
             resp.raise_for_status()
             data = resp.json()
 
-            # Reranker response format: { "results": [{"index": 0, "relevance_score": 0.99}, ...] }
+            # Reranker response format: { "results": [{"index": 0, "relevance_score": 0.99}, ...] }  # noqa: E501
             results = data.get("results", [])
             if not results:
                 return None
