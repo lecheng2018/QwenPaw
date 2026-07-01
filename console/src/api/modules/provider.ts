@@ -3,6 +3,7 @@ import type {
   ProviderInfo,
   ProviderConfigRequest,
   ActiveModelsInfo,
+  AuxiliaryModelConfig,
   GetActiveModelsRequest,
   ModelSlotRequest,
   CreateCustomProviderRequest,
@@ -204,4 +205,15 @@ export const providerApi = {
         providerId,
       )}/oauth/status?state=${encodeURIComponent(state)}`,
     ),
+
+  /* ---- Auxiliary vision model ---- */
+
+  getAuxiliaryModel: () =>
+    request<AuxiliaryModelConfig>("/models/auxiliary"),
+
+  setAuxiliaryModel: (body: AuxiliaryModelConfig) =>
+    request<AuxiliaryModelConfig>("/models/auxiliary", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
 };

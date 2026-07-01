@@ -1779,7 +1779,16 @@
     "modalityFile": "File",
     "modalityText": "Text only",
     "perMillionIn": "/1M in",
-    "perMillionOut": "/1M out"
+    "perMillionOut": "/1M out",
+    "auxiliaryModel": "Auxiliary Vision Model",
+    "auxiliaryModelDescription": "When using a text-only model, delegate image/video analysis to a dedicated vision model so the assistant can understand visual content.",
+    "auxiliaryModelEnabled": "Auxiliary vision model is active",
+    "auxiliaryModelDisabled": "Not configured",
+    "visionModelProvider": "Vision Model Provider",
+    "visionModelModel": "Vision Model",
+    "visionModelSaved": "Auxiliary vision model saved",
+    "visionModelSaveFailed": "Failed to save auxiliary vision model",
+    "enableAuxiliaryModel": "Enable auxiliary vision model"
   },
   "agentConfig": {
     "title": "Configuration",

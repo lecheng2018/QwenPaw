@@ -1637,7 +1637,16 @@
     "modalityFile": "文件",
     "modalityText": "仅文本",
     "perMillionIn": "/1M 输入",
-    "perMillionOut": "/1M 输出"
+    "perMillionOut": "/1M 输出",
+    "auxiliaryModel": "辅助视觉模型",
+    "auxiliaryModelDescription": "当使用纯文本模型时，将图像/视频分析委托给专用视觉模型，使助手能够理解视觉内容。",
+    "auxiliaryModelEnabled": "辅助视觉模型已启用",
+    "auxiliaryModelDisabled": "未配置",
+    "visionModelProvider": "视觉模型提供商",
+    "visionModelModel": "视觉模型",
+    "visionModelSaved": "辅助视觉模型已保存",
+    "visionModelSaveFailed": "保存辅助视觉模型失败",
+    "enableAuxiliaryModel": "启用辅助视觉模型"
   },
   "agentConfig": {
     "title": "运行配置",

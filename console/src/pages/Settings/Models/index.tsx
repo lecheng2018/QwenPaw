@@ -10,6 +10,7 @@ import { Button, Input, Modal } from "@agentscope-ai/design";
 import { PlusOutlined, SearchOutlined, SyncOutlined } from "@ant-design/icons";
 import { useProviders } from "./useProviders";
 import {
+  AuxiliaryModelModal,
   LoadingState,
   ProviderCard,
   ProviderGroupCard,
@@ -20,7 +21,10 @@ import {
 } from "./components";
 import { PageHeader } from "@/components/PageHeader";
 import { useTranslation } from "react-i18next";
-import type { ProviderInfo } from "../../../api/types/provider";
+import type {
+  AuxiliaryModelConfig,
+  ProviderInfo,
+} from "../../../api/types/provider";
 import {
   countConfiguredProviders,
   getIsConfigured,
@@ -51,6 +55,8 @@ function ModelsPage() {
     providers: ProviderInfo[];
   } | null>(null);
   const [llmModalOpen, setLlmModalOpen] = useState(false);
+  const [auxModalOpen, setAuxModalOpen] = useState(false);
+  const [auxConfig, setAuxConfig] = useState<AuxiliaryModelConfig | null>(null);
   const [activeTab, setActiveTab] = useState<"cloud" | "local">(() => {
     const stored = localStorage.getItem("models_tab");
     return stored === "local" ? "local" : "cloud";
@@ -71,6 +77,19 @@ function ModelsPage() {
   const refreshProvidersSilently = useCallback(() => {
     void fetchAll(false);
   }, [fetchAll]);
+
+  const fetchAuxiliaryModel = useCallback(async () => {
+    try {
+      const cfg = await api.getAuxiliaryModel();
+      setAuxConfig(cfg);
+    } catch (err) {
+      console.error("Failed to load auxiliary model config:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAuxiliaryModel();
+  }, [fetchAuxiliaryModel]);
 
   const handleTabChange = useCallback((tab: "cloud" | "local") => {
     setActiveTab(tab);
@@ -324,6 +343,34 @@ function ModelsPage() {
                     <span className={styles.llmPillValue}>
                       {activeModels?.active_llm?.provider_id || "—"} /{" "}
                       {activeModels?.active_llm?.model || "—"}
+                    </span>
+                    <span className={styles.llmPillEdit}>
+                      {t("common.edit")}
+                    </span>
+                  </div>
+                  <div
+                    className={[
+                      styles.llmPill,
+                      auxConfig?.enabled && auxConfig?.vision_model
+                        ? styles.llmPillOn
+                        : styles.llmPillOff,
+                    ].join(" ")}
+                    onClick={() => setAuxModalOpen(true)}
+                  >
+                    <span
+                      className={
+                        auxConfig?.enabled && auxConfig?.vision_model
+                          ? styles.llmPillDot
+                          : styles.llmPillDotOff
+                      }
+                    />
+                    <span className={styles.llmPillLabel}>
+                      {t("models.auxiliaryModel")}:
+                    </span>
+                    <span className={styles.llmPillValue}>
+                      {auxConfig?.enabled && auxConfig?.vision_model
+                        ? `${auxConfig.vision_model.provider_id} / ${auxConfig.vision_model.model}`
+                        : t("models.auxiliaryModelDisabled")}
                     </span>
                     <span className={styles.llmPillEdit}>
                       {t("common.edit")}
@@ -599,6 +646,25 @@ function ModelsPage() {
                   </div>
                 ))}
               </div>
+            </Modal>
+
+            <Modal
+              open={auxModalOpen}
+              title={t("models.auxiliaryModel")}
+              footer={null}
+              onCancel={() => setAuxModalOpen(false)}
+              destroyOnClose
+              width={520}
+            >
+              <AuxiliaryModelModal
+                open={auxModalOpen}
+                providers={providers}
+                initialConfig={auxConfig}
+                onClose={() => setAuxModalOpen(false)}
+                onSaved={() => {
+                  fetchAuxiliaryModel();
+                }}
+              />
             </Modal>
           </div>
         </>

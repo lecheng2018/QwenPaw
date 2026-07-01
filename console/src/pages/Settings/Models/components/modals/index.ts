@@ -1,3 +1,4 @@
+export * from "./AuxiliaryModelModal";
 export * from "./CustomProviderModal";
 export * from "./ProviderConfigModal";
 export * from "./ModelManageModal";

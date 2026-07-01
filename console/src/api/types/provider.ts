@@ -75,6 +75,12 @@ export interface ModelSlotConfig {
 
 export interface ActiveModelsInfo {
   active_llm?: ModelSlotConfig;
+  auxiliary_vision?: ModelSlotConfig;
+}
+
+export interface AuxiliaryModelConfig {
+  enabled: boolean;
+  vision_model?: ModelSlotConfig;
 }
 
 export type ActiveModelScope = "effective" | "global" | "agent";
