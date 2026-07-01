@@ -676,47 +676,45 @@ class AgentBuilder:
         )
 
     @staticmethod
-    def _build_middlewares(  # pylint: disable=too-many-statements
+    def _add_tool_coordinator(
+        ctx: Any,
+        mws: list[Any],
+    ) -> None:
+        """Add ToolCoordinatorMiddleware if coordinator is available."""
+        app_services = getattr(ctx, "app_services", None)
+        if app_services is None:
+            return
+        tool_coordinator = getattr(app_services, "tool_coordinator", None)
+        if tool_coordinator is None:
+            return
+        from ..tool_calls import ToolCoordinatorMiddleware
+
+        mws.append(ToolCoordinatorMiddleware(coordinator=tool_coordinator))
+
+    @staticmethod
+    def _add_memory_middlewares(
+        ctx: Any,
+        mws: list[Any],
+    ) -> None:
+        """Add memory middlewares from the memory manager."""
+        memory_manager = AgentBuilder._get_memory_manager(ctx)
+        if memory_manager is None:
+            return
+        build_middlewares = getattr(memory_manager, "build_middlewares", None)
+        if not callable(build_middlewares):
+            return
+        try:
+            mws.extend(build_middlewares())
+        except Exception:
+            _logger.debug("Memory middlewares not created", exc_info=True)
+
+    @staticmethod
+    def _add_tool_result_pruning(
         ctx: Any,
         agent_config: Any,
-    ) -> list[Any]:
-        """Build middleware list.
-
-        Order (onion model, outermost first):
-        1. ToolCoordinatorMiddleware — tool call lifecycle management
-        2. ToolResultPruningMiddleware — tiered tool result pruning
-        3. Plugin-registered middlewares (sorted by priority)
-        """
-        mws: list[Any] = []
-
-        app_services = getattr(ctx, "app_services", None)
-        if app_services is not None:
-            tool_coordinator = getattr(
-                app_services,
-                "tool_coordinator",
-                None,
-            )
-            if tool_coordinator is not None:
-                from ..tool_calls import ToolCoordinatorMiddleware
-
-                mws.append(
-                    ToolCoordinatorMiddleware(coordinator=tool_coordinator),
-                )
-
-        memory_manager = AgentBuilder._get_memory_manager(ctx)
-        if memory_manager is not None:
-            try:
-                build_middlewares = getattr(
-                    memory_manager,
-                    "build_middlewares",
-                    None,
-                )
-                if callable(build_middlewares):
-                    mws.extend(build_middlewares())
-            except Exception:
-                _logger.debug("Memory middlewares not created", exc_info=True)
-
-        # Tiered tool-result pruning (ported from LightContextManager)
+        mws: list[Any],
+    ) -> None:
+        """Add ToolResultPruningMiddleware."""
         try:
             import os
 
@@ -724,7 +722,6 @@ class AgentBuilder:
 
             lcc = agent_config.running.light_context_config
             trc = lcc.tool_result_pruning_config
-
             workspace = getattr(ctx, "workspace", None)
             workspace_dir = (
                 str(getattr(workspace, "workspace_dir", ""))
@@ -736,7 +733,6 @@ class AgentBuilder:
                 if workspace_dir
                 else ""
             )
-
             mws.append(
                 ToolResultPruningMiddleware(
                     enabled=trc.enabled,
@@ -759,7 +755,9 @@ class AgentBuilder:
                 exc_info=True,
             )
 
-        # Langfuse tool observability
+    @staticmethod
+    def _add_langfuse_observability(mws: list[Any]) -> None:
+        """Add LangfuseToolSpanMiddleware if Langfuse is enabled."""
         try:
             from ..observability.langfuse import is_langfuse_enabled
 
@@ -773,7 +771,13 @@ class AgentBuilder:
                 exc_info=True,
             )
 
-        # Plugin-registered middlewares
+    @staticmethod
+    def _add_plugin_middlewares(
+        ctx: Any,
+        agent_config: Any,
+        mws: list[Any],
+    ) -> None:
+        """Add plugin-registered middlewares (sorted by priority)."""
         from ..plugins.registry import PluginRegistry
 
         registry = PluginRegistry()
@@ -789,6 +793,26 @@ class AgentBuilder:
                     exc_info=True,
                 )
 
+    @staticmethod
+    def _build_middlewares(
+        ctx: Any,
+        agent_config: Any,
+    ) -> list[Any]:
+        """Build middleware list.
+
+        Order (onion model, outermost first):
+        1. ToolCoordinatorMiddleware — tool call lifecycle management
+        2. Memory middlewares from the active memory manager
+        3. ToolResultPruningMiddleware — tiered tool result pruning
+        4. LangfuseToolSpanMiddleware — tool observability
+        5. Plugin-registered middlewares (sorted by priority)
+        """
+        mws: list[Any] = []
+        AgentBuilder._add_tool_coordinator(ctx, mws)
+        AgentBuilder._add_memory_middlewares(ctx, mws)
+        AgentBuilder._add_tool_result_pruning(ctx, agent_config, mws)
+        AgentBuilder._add_langfuse_observability(mws)
+        AgentBuilder._add_plugin_middlewares(ctx, agent_config, mws)
         return mws
 
 
