@@ -470,7 +470,7 @@ class ReMeLightMemoryManager(BaseMemoryManager):
         """Invalidate cached reranker config (call after config reload)."""
         self._reranker_config_cache = None
 
-    async def _call_reranker_api(
+    async def _call_reranker_api(  # pylint: disable=too-many-return-statements
         self,
         query: str,
         documents: list[str],
@@ -519,7 +519,7 @@ class ReMeLightMemoryManager(BaseMemoryManager):
             resp.raise_for_status()
             data = resp.json()
 
-            # Reranker response format: { "results": [{"index": 0, "relevance_score": 0.99}, ...] }  # noqa: E501
+            # Reranker response format: { "results": [{"index": 0, "relevance_score": 0.99}, ...] }  # noqa: E501  # pylint: disable=line-too-long
             results = data.get("results", [])
             if not results:
                 return None
