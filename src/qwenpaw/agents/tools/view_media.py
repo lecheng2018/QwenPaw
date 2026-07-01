@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Load image or video files into the LLM context for analysis."""
 
+import asyncio
 import logging
 import mimetypes
 import os
@@ -208,8 +209,6 @@ async def _probe_multimodal_if_needed(
                 supports,
             )
             # Fire full probe in background to persist video support too
-            import asyncio
-
             asyncio.create_task(
                 manager.probe_model_multimodal(
                     active.provider_id,
@@ -321,6 +320,128 @@ def _get_multimodal_fallback_hint(media_type: str, path: str) -> str:
     )
 
 
+async def _analyze_with_vision_model(
+    media_block: DataBlock,
+    media_type: str,
+) -> str | None:
+    """Call the auxiliary vision model to analyze an image/video.
+
+    Returns a text description of the media, or None if the call fails
+    or no auxiliary vision model is configured.
+    """
+    try:
+        from agentscope.message import Msg as ASCOPE_Msg
+
+        from ...providers.provider_manager import ProviderManager
+
+        manager = ProviderManager.get_instance()
+        slot = manager.get_auxiliary_vision_model()
+        if slot is None:
+            return None
+
+        provider = manager.get_provider(slot.provider_id)
+        if provider is None:
+            logger.warning(
+                "Auxiliary vision provider '%s' not found", slot.provider_id
+            )
+            return None
+        if not provider.has_model(slot.model):
+            logger.warning(
+                "Auxiliary vision model '%s' not found in provider '%s'",
+                slot.model,
+                slot.provider_id,
+            )
+            return None
+
+        model = provider.get_chat_model_instance(slot.model)
+
+        prompt = (
+            f"Describe this {media_type} in detail so a text-only "
+            f"assistant can understand its content. Include objects, "
+            f"text, colors, spatial relationships, and any other "
+            f"relevant details."
+        )
+        msg = ASCOPE_Msg(
+            name="user",
+            role="user",
+            content=[
+                TextBlock(type="text", text=prompt),
+                media_block,
+            ],
+        )
+
+        logger.info(
+            "Calling auxiliary vision model %s/%s for %s analysis",
+            slot.provider_id,
+            slot.model,
+            media_type,
+        )
+
+        response = await asyncio.wait_for(
+            model([msg]),
+            timeout=60.0,
+        )
+
+        # Handle both streaming (async generator) and non-streaming response
+        if hasattr(response, "__aiter__"):
+            accumulated = ""
+            async for chunk in response:
+                text = _extract_text_from_response(chunk)
+                if text:
+                    accumulated = text
+            description = accumulated
+        else:
+            description = _extract_text_from_response(response)
+
+        if description:
+            logger.info(
+                "Auxiliary vision model returned %d-char description",
+                len(description),
+            )
+            return description
+        logger.warning("Auxiliary vision model returned empty description")
+        return None
+    except Exception as e:
+        logger.warning(
+            "Auxiliary vision model call failed: %s: %s",
+            type(e).__name__,
+            e,
+        )
+        return None
+
+
+def _safe_text_attr(obj, name):
+    """Safely get text attribute from response objects."""
+    if isinstance(obj, dict):
+        return obj.get(name)
+    try:
+        return getattr(obj, name, None)
+    except (AttributeError, KeyError, TypeError):
+        return None
+
+
+def _extract_text_from_response(response) -> str:
+    """Pull text out of a ChatResponse-like object or stream chunk."""
+    if response is None:
+        return ""
+    if isinstance(response, str):
+        return response
+    text = _safe_text_attr(response, "text")
+    if isinstance(text, str) and text:
+        return text
+    content = _safe_text_attr(response, "content")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        for item in content:
+            if isinstance(item, dict) and isinstance(item.get("text"), str):
+                return item["text"]
+            inner = _safe_text_attr(item, "text")
+            if isinstance(inner, str):
+                return inner
+    return ""
+
+
 @tool_descriptor(requires_sandbox=("file_read",), async_execution=True)
 async def view_image(image_path: str) -> ToolChunk:
     """Load an image file into the LLM context so the model can see it.
@@ -331,10 +452,10 @@ async def view_image(image_path: str) -> ToolChunk:
     downloading.
 
     When the model does not support multimodal, the image is still
-    returned (so the user/frontend can see it) along with a text hint
-    telling the agent it cannot perceive the image. The downstream
-    media-stripping pipeline will remove the ImageBlock before sending
-    to the model.
+    returned (so the user/frontend can see it). If an auxiliary vision
+    model is configured, the image is sent to it for analysis and the
+    description is included. Otherwise a text hint tells the agent it
+    cannot perceive the image.
 
     Args:
         image_path (`str`):
@@ -346,10 +467,35 @@ async def view_image(image_path: str) -> ToolChunk:
     """
     # Determine whether we need a fallback hint
     fallback_hint: str | None = None
+    vision_description: str | None = None
     if not _check_multimodal_support("image"):
         probe_result = await _probe_multimodal_if_needed("image")
         if probe_result is not True:
-            fallback_hint = _get_multimodal_fallback_hint("image", image_path)
+            # Try auxiliary vision model before using static fallback hint
+            if _is_url(image_path):
+                aux_media_block = _media_data_block(image_path, "image")
+            else:
+                resolved_tmp, _ = _validate_media_path(
+                    image_path,
+                    _IMAGE_EXTENSIONS,
+                    "image",
+                )
+                if resolved_tmp and resolved_tmp.exists():
+                    tmp_url = _path_to_file_url(str(resolved_tmp))
+                    aux_media_block = _media_data_block(tmp_url, "image")
+                else:
+                    aux_media_block = None
+
+            if aux_media_block is not None:
+                vision_description = await _analyze_with_vision_model(
+                    aux_media_block,
+                    "image",
+                )
+
+            if vision_description is None:
+                fallback_hint = _get_multimodal_fallback_hint(
+                    "image", image_path
+                )
 
     if _is_url(image_path):
         err = _validate_url_extension(
@@ -359,18 +505,33 @@ async def view_image(image_path: str) -> ToolChunk:
         )
         if err is not None:
             return err
-        text_msg = (
-            fallback_hint
-            if fallback_hint
-            else f"Image loaded from URL: {image_path}"
-        )
+
+        content_blocks = [_media_data_block(image_path, "image")]
+        if vision_description:
+            content_blocks.append(
+                TextBlock(
+                    type="text",
+                    text=(
+                        f"[Vision model analysis of {image_path}]:\n"
+                        f"{vision_description}"
+                    ),
+                )
+            )
+        else:
+            content_blocks.append(
+                TextBlock(
+                    type="text",
+                    text=(
+                        fallback_hint
+                        if fallback_hint
+                        else f"Image loaded from URL: {image_path}"
+                    ),
+                )
+            )
         return ToolChunk(
             is_last=True,
             state=ToolResultState.SUCCESS,
-            content=[
-                _media_data_block(image_path, "image"),
-                TextBlock(type="text", text=text_msg),
-            ],
+            content=content_blocks,
         )
 
     resolved, err = _validate_media_path(
@@ -383,16 +544,32 @@ async def view_image(image_path: str) -> ToolChunk:
 
     file_url = _path_to_file_url(str(resolved))
 
-    text_msg = (
-        fallback_hint if fallback_hint else f"Image loaded: {resolved.name}"
-    )
+    content_blocks = [_media_data_block(file_url, "image")]
+    if vision_description:
+        content_blocks.append(
+            TextBlock(
+                type="text",
+                text=(
+                    f"[Vision model analysis of {resolved.name}]:\n"
+                    f"{vision_description}"
+                ),
+            )
+        )
+    else:
+        content_blocks.append(
+            TextBlock(
+                type="text",
+                text=(
+                    fallback_hint
+                    if fallback_hint
+                    else f"Image loaded: {resolved.name}"
+                ),
+            )
+        )
     return ToolChunk(
         is_last=True,
         state=ToolResultState.SUCCESS,
-        content=[
-            _media_data_block(file_url, "image"),
-            TextBlock(type="text", text=text_msg),
-        ],
+        content=content_blocks,
     )
 
 
@@ -405,8 +582,10 @@ async def view_video(video_path: str) -> ToolChunk:
     the URL is passed directly to the model without downloading.
 
     When the model does not support multimodal, the video is still
-    returned (so the user/frontend can see it) along with a text hint
-    telling the agent it cannot perceive the video.
+    returned (so the user/frontend can see it). If an auxiliary vision
+    model is configured, the video is sent to it for analysis and the
+    description is included. Otherwise a text hint tells the agent it
+    cannot perceive the video.
 
     Args:
         video_path (`str`):
@@ -417,10 +596,34 @@ async def view_video(video_path: str) -> ToolChunk:
             A VideoBlock the model can inspect, or an error message.
     """
     fallback_hint: str | None = None
+    vision_description: str | None = None
     if not _check_multimodal_support("video"):
         probe_result = await _probe_multimodal_if_needed("video")
         if probe_result is not True:
-            fallback_hint = _get_multimodal_fallback_hint("video", video_path)
+            if _is_url(video_path):
+                aux_media_block = _media_data_block(video_path, "video")
+            else:
+                resolved_tmp, _ = _validate_media_path(
+                    video_path,
+                    _VIDEO_EXTENSIONS,
+                    "video",
+                )
+                if resolved_tmp and resolved_tmp.exists():
+                    tmp_url = _path_to_file_url(str(resolved_tmp))
+                    aux_media_block = _media_data_block(tmp_url, "video")
+                else:
+                    aux_media_block = None
+
+            if aux_media_block is not None:
+                vision_description = await _analyze_with_vision_model(
+                    aux_media_block,
+                    "video",
+                )
+
+            if vision_description is None:
+                fallback_hint = _get_multimodal_fallback_hint(
+                    "video", video_path
+                )
 
     if _is_url(video_path):
         err = _validate_url_extension(
@@ -430,18 +633,33 @@ async def view_video(video_path: str) -> ToolChunk:
         )
         if err is not None:
             return err
-        text_msg = (
-            fallback_hint
-            if fallback_hint
-            else f"Video loaded from URL: {video_path}"
-        )
+
+        content_blocks = [_media_data_block(video_path, "video")]
+        if vision_description:
+            content_blocks.append(
+                TextBlock(
+                    type="text",
+                    text=(
+                        f"[Vision model analysis of {video_path}]:\n"
+                        f"{vision_description}"
+                    ),
+                )
+            )
+        else:
+            content_blocks.append(
+                TextBlock(
+                    type="text",
+                    text=(
+                        fallback_hint
+                        if fallback_hint
+                        else f"Video loaded from URL: {video_path}"
+                    ),
+                )
+            )
         return ToolChunk(
             is_last=True,
             state=ToolResultState.SUCCESS,
-            content=[
-                _media_data_block(video_path, "video"),
-                TextBlock(type="text", text=text_msg),
-            ],
+            content=content_blocks,
         )
 
     resolved, err = _validate_media_path(
@@ -453,14 +671,31 @@ async def view_video(video_path: str) -> ToolChunk:
         return err
 
     file_url = _path_to_file_url(str(resolved))
-    text_msg = (
-        fallback_hint if fallback_hint else f"Video loaded: {resolved.name}"
-    )
+
+    content_blocks = [_media_data_block(file_url, "video")]
+    if vision_description:
+        content_blocks.append(
+            TextBlock(
+                type="text",
+                text=(
+                    f"[Vision model analysis of {resolved.name}]:\n"
+                    f"{vision_description}"
+                ),
+            )
+        )
+    else:
+        content_blocks.append(
+            TextBlock(
+                type="text",
+                text=(
+                    fallback_hint
+                    if fallback_hint
+                    else f"Video loaded: {resolved.name}"
+                ),
+            )
+        )
     return ToolChunk(
         is_last=True,
         state=ToolResultState.SUCCESS,
-        content=[
-            _media_data_block(file_url, "video"),
-            TextBlock(type="text", text=text_msg),
-        ],
+        content=content_blocks,
     )

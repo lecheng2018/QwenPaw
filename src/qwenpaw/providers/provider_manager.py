@@ -5,7 +5,7 @@ providers, adding/removing custom providers, and fetching provider details."""
 
 import asyncio
 import os
-from typing import Dict, List
+from typing import Dict, List, Optional
 import logging
 import json
 
@@ -17,7 +17,7 @@ from qwenpaw.exceptions import (
 )
 
 from ..constant import SECRET_DIR
-from ..config.config import ModelSlotConfig
+from ..config.config import AuxiliaryModelConfig, ModelSlotConfig
 from ..exceptions import ProviderError
 from .anthropic_provider import AnthropicProvider
 from .dashscope_provider import DashScopeProvider
@@ -1266,6 +1266,7 @@ class ProviderManager:  # pylint: disable=too-many-public-methods
         self.custom_providers: Dict[str, Provider] = {}
         self.plugin_providers: Dict[str, Dict] = {}  # Plugin providers
         self.active_model: ModelSlotConfig | None = None
+        self.auxiliary_model: AuxiliaryModelConfig | None = None
         self.root_path = SECRET_DIR / "providers"
         self.builtin_path = self.root_path / "builtin"
         self.custom_path = self.root_path / "custom"
@@ -1980,6 +1981,59 @@ class ProviderManager:  # pylint: disable=too-many-public-methods
         except Exception:
             return None
 
+    def save_auxiliary_model(self, aux_config: AuxiliaryModelConfig) -> None:
+        """Save the auxiliary model configuration to disk."""
+        aux_path = self.root_path / "auxiliary_model.json"
+        with open(aux_path, "w", encoding="utf-8") as f:
+            json.dump(
+                aux_config.model_dump(),
+                f,
+                ensure_ascii=False,
+                indent=2,
+            )
+        try:
+            os.chmod(aux_path, 0o600)
+        except OSError:
+            pass
+
+    def load_auxiliary_model(self) -> AuxiliaryModelConfig:
+        """Load the auxiliary model configuration from disk.
+
+        Returns a default (disabled, no model) config when the file is
+        missing or malformed.
+        """
+        aux_path = self.root_path / "auxiliary_model.json"
+        if not aux_path.exists():
+            return AuxiliaryModelConfig()
+        try:
+            with open(aux_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return AuxiliaryModelConfig.model_validate(data)
+        except Exception:
+            return AuxiliaryModelConfig()
+
+    def clear_auxiliary_model(self) -> bool:
+        """Clear the auxiliary model configuration from memory and disk."""
+        self.auxiliary_model = AuxiliaryModelConfig()
+        aux_path = self.root_path / "auxiliary_model.json"
+        try:
+            aux_path.unlink()
+        except (FileNotFoundError, OSError):
+            pass
+        return True
+
+    def get_auxiliary_vision_model(self) -> ModelSlotConfig | None:
+        """Return the auxiliary vision model slot if configured and enabled."""
+        if (
+            self.auxiliary_model
+            and self.auxiliary_model.enabled
+            and self.auxiliary_model.vision_model
+            and self.auxiliary_model.vision_model.provider_id
+            and self.auxiliary_model.vision_model.model
+        ):
+            return self.auxiliary_model.vision_model
+        return None
+
     def _migrate_copaw_config(self) -> None:
         """Migrate copaw-local provider config to qwenpaw-local."""
         # 1. Migrate active model configuration (only provider_id)
@@ -2172,6 +2226,9 @@ class ProviderManager:  # pylint: disable=too-many-public-methods
         active_model = self.load_active_model()
         if active_model:
             self.active_model = active_model
+
+        # Load auxiliary model config
+        self.auxiliary_model = self.load_auxiliary_model()
 
         # Migrate copaw-local to qwenpaw-local for backwards compatibility
         self._migrate_copaw_config()

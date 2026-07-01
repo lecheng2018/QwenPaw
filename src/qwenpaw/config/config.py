@@ -55,6 +55,30 @@ class ActiveModelsInfo(BaseModel):
     """Active models information for provider manager."""
 
     active_llm: ModelSlotConfig | None
+    auxiliary_vision: ModelSlotConfig | None = None
+
+
+class AuxiliaryModelConfig(BaseModel):
+    """Configuration for auxiliary models that supplement the primary LLM.
+
+    When the primary LLM does not support multimodal input, an auxiliary
+    vision model can be used to analyze images/videos and return a text
+    description to the primary model.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = Field(
+        default=False,
+        description="Enable auxiliary model delegation",
+    )
+    vision_model: Optional[ModelSlotConfig] = Field(
+        default=None,
+        description=(
+            "Vision model slot (provider_id + model) for image/video "
+            "analysis when the primary model is text-only"
+        ),
+    )
 
 
 class ACPAgentConfig(BaseModel):

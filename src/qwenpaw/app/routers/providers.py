@@ -22,12 +22,16 @@ from qwenpaw.exceptions import (
 
 from ..agent_context import get_agent_for_request
 from ..utils import schedule_agent_reload
-from ...config.config import load_agent_config, save_agent_config
-from ...providers.provider import ProviderInfo, ModelInfo
-from ...config.config import ActiveModelsInfo
+from ...config.config import (
+    ActiveModelsInfo,
+    AuxiliaryModelConfig,
+    load_agent_config,
+    ModelSlotConfig,
+    save_agent_config,
+)
+from ...providers.provider import ModelInfo, ProviderInfo
 from ...providers.provider_manager import ProviderManager
 from ...providers.openrouter_provider import OpenRouterProvider
-from ...config.config import ModelSlotConfig
 
 logger = logging.getLogger(__name__)
 
@@ -599,8 +603,13 @@ async def get_active_models(
     - global: ProviderManager global model only
     - agent: a specific agent's configured model only
     """
+    aux = manager.get_auxiliary_vision_model()
+
+    def _build(active_llm):
+        return ActiveModelsInfo(active_llm=active_llm, auxiliary_vision=aux)
+
     if scope == "global":
-        return ActiveModelsInfo(active_llm=manager.get_active_model())
+        return _build(manager.get_active_model())
 
     if scope == "agent":
         if not agent_id:
@@ -608,9 +617,7 @@ async def get_active_models(
                 status_code=400,
                 detail="agent_id is required when scope is 'agent'",
             )
-        return ActiveModelsInfo(
-            active_llm=await _load_agent_model(request, agent_id),
-        )
+        return _build(await _load_agent_model(request, agent_id))
 
     try:
         target_agent_id = agent_id
@@ -625,7 +632,7 @@ async def get_active_models(
                 target_agent_id,
                 agent_model,
             )
-            return ActiveModelsInfo(active_llm=agent_model)
+            return _build(agent_model)
     except (
         HTTPException,
         OSError,
@@ -641,7 +648,7 @@ async def get_active_models(
 
     global_model = manager.get_active_model()
     logger.info("Returning global model: %s", global_model)
-    return ActiveModelsInfo(active_llm=global_model)
+    return _build(global_model)
 
 
 @router.put(
@@ -969,3 +976,85 @@ async def filter_openrouter_models(
             status_code=500,
             detail=f"Failed to filter models: {str(exc)}",
         ) from exc
+
+
+@router.get(
+    "/auxiliary",
+    response_model=AuxiliaryModelConfig,
+    summary="Get auxiliary model configuration",
+)
+async def get_auxiliary_model(
+    manager: ProviderManager = Depends(get_provider_manager),
+) -> AuxiliaryModelConfig:
+    """Return the current auxiliary vision model configuration."""
+    return manager.auxiliary_model or AuxiliaryModelConfig()
+
+
+@router.put(
+    "/auxiliary",
+    response_model=AuxiliaryModelConfig,
+    summary="Update auxiliary model configuration",
+)
+async def set_auxiliary_model(
+    request: Request,
+    body: AuxiliaryModelConfig = Body(...),
+    manager: ProviderManager = Depends(get_provider_manager),
+) -> AuxiliaryModelConfig:
+    """Update the auxiliary vision model configuration.
+
+    When ``enabled=True`` and a ``vision_model`` is provided, the model is
+    validated against the provider registry.  If the model is known to be
+    text-only, a 400 is returned with a warning.
+    """
+    if body.enabled and body.vision_model and body.vision_model.provider_id:
+        pid = body.vision_model.provider_id
+        mid = body.vision_model.model
+        if not mid:
+            raise HTTPException(
+                status_code=400,
+                detail="vision_model.model is required when enabled",
+            )
+
+        provider = manager.get_provider(pid)
+        if provider is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Provider '{pid}' not found.",
+            )
+        if not provider.has_model(mid):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Model '{mid}' not found in provider '{pid}'.",
+            )
+
+        model_info = provider.get_model_info(mid)
+        if model_info is not None:
+            is_text_only = (
+                model_info.supports_multimodal is False
+                and model_info.supports_image is not True
+                and model_info.supports_video is not True
+            )
+            if is_text_only:
+                logger.warning(
+                    "Auxiliary vision model %s/%s appears to be text-only. "
+                    "It may not be able to analyze images/videos.",
+                    pid,
+                    mid,
+                )
+
+    manager.auxiliary_model = body
+    manager.save_auxiliary_model(body)
+
+    # Reload affected agents since auxiliary config changed
+    try:
+        await get_agent_for_request(request)
+    except Exception:
+        pass
+
+    logger.info(
+        "Auxiliary model config updated: enabled=%s, model=%s/%s",
+        body.enabled,
+        body.vision_model.provider_id if body.vision_model else None,
+        body.vision_model.model if body.vision_model else None,
+    )
+    return body

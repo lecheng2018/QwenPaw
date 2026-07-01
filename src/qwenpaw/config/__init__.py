@@ -4,6 +4,7 @@ from .config import (
     ChannelConfig,
     ChannelConfigUnion,
     AgentsRunningConfig,
+    AuxiliaryModelConfig,
     FileGuardConfig,
     HeartbeatConfig,
     SecurityConfig,
@@ -31,6 +32,7 @@ from .utils import (
 
 __all__ = [
     "AgentsRunningConfig",
+    "AuxiliaryModelConfig",
     "Config",
     "ChannelConfig",
     "ChannelConfigUnion",
