@@ -170,16 +170,18 @@ class OpenAIProvider(Provider):
 
         from .openai_chat_model_compat import OpenAIChatModelCompat
 
-        # Resolve endpoint_url: model-level overrides provider-level.
+        # Resolve endpoint_url: when chat_model is CustomEndpoint,
+        # base_url is treated as the full API endpoint URL.
+        # Otherwise, check for per-model endpoint_url override.
         model_info = self.get_model_info(model_id)
         model_endpoint_url = (
             model_info.endpoint_url
             if model_info and model_info.endpoint_url
             else ""
         )
-        effective_endpoint_url = (
-            model_endpoint_url or self.endpoint_url
-        )
+        effective_endpoint_url = model_endpoint_url
+        if not effective_endpoint_url and self.chat_model == "CustomEndpoint":
+            effective_endpoint_url = self.base_url
 
         credential = OpenAICredential(
             id=f"qwenpaw-{self.id}",

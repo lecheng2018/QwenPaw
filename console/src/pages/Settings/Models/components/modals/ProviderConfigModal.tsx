@@ -379,6 +379,12 @@ export function ProviderConfigModal({
     if (!canEditBaseUrl) {
       return undefined;
     }
+    if (selectedChatModel === "CustomEndpoint") {
+      return t(
+        "models.customEndpointHint",
+        "填写完整的 API 端点 URL，如 https://api.example.com/v1/images/generations",
+      );
+    }
     if (useBaseUrlSelect) {
       return t("models.selectBaseURLHint");
     }
@@ -419,6 +425,9 @@ export function ProviderConfigModal({
     if (!canEditBaseUrl) {
       return "";
     }
+    if (selectedChatModel === "CustomEndpoint") {
+      return "https://api.example.com/v1/custom/path";
+    }
     if (provider.id === "azure-openai") {
       return "https://<resource>.openai.azure.com/openai/v1";
     }
@@ -450,7 +459,6 @@ export function ProviderConfigModal({
         api_key: undefined,
         base_url: provider.base_url || undefined,
         chat_model: provider.chat_model || "OpenAIChatModel",
-        endpoint_url: (provider as any).endpoint_url || undefined,
         generate_kwargs_text:
           provider.generate_kwargs &&
           Object.keys(provider.generate_kwargs).length > 0
@@ -516,10 +524,6 @@ export function ProviderConfigModal({
         generate_kwargs: hasGenerateConfigInput ? generateConfig : {},
         custom_headers: headersObj,
         auth_mode: isAnthropicProvider ? authMode : undefined,
-        endpoint_url:
-          values.chat_model === "CustomEndpoint"
-            ? values.endpoint_url
-            : undefined,
       });
 
       await onSaved();
@@ -658,7 +662,6 @@ export function ProviderConfigModal({
         initialValues={{
           base_url: provider.base_url || undefined,
           chat_model: provider.chat_model || "OpenAIChatModel",
-          endpoint_url: (provider as any).endpoint_url || undefined,
           generate_kwargs_text:
             provider.generate_kwargs &&
             Object.keys(provider.generate_kwargs).length > 0
@@ -702,49 +705,14 @@ export function ProviderConfigModal({
           </Form.Item>
         )}
 
-        {provider.is_custom && selectedChatModel === "CustomEndpoint" && (
-          <Form.Item
-            name="endpoint_url"
-            label={t("models.endpointUrlLabel", "API 端点 URL")}
-            rules={[
-              {
-                required: true,
-                message: t("models.pleaseEnterEndpointURL"),
-              },
-              {
-                validator: (_: unknown, value: string) => {
-                  if (!value || !value.trim()) return Promise.resolve();
-                  try {
-                    const url = new URL(value.trim());
-                    if (!["http:", "https:"].includes(url.protocol)) {
-                      return Promise.reject(
-                        new Error(t("models.pleaseEnterValidURL")),
-                      );
-                    }
-                    return Promise.resolve();
-                  } catch {
-                    return Promise.reject(
-                      new Error(t("models.pleaseEnterValidURL")),
-                    );
-                  }
-                },
-              },
-            ]}
-            extra={t(
-              "models.endpointUrlHint",
-              "填写完整的 API 端点地址，如 https://api.example.com/v1/images/generations",
-            )}
-          >
-            <Input
-              placeholder="https://api.example.com/v1/custom/path"
-            />
-          </Form.Item>
-        )}
-
         {/* Base URL */}
         <Form.Item
           name="base_url"
-          label={t("models.baseURL")}
+          label={
+            selectedChatModel === "CustomEndpoint"
+              ? t("models.endpointUrlLabel", "API 端点 URL")
+              : t("models.baseURL")
+          }
           rules={
             canEditBaseUrl
               ? [
