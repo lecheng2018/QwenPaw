@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 from fastapi import (
     APIRouter,
     Body,
@@ -130,6 +130,14 @@ class AddModelRequest(BaseModel):
         default=None,
         description="Source of capability metadata",
     )
+    endpoint_url: str = Field(
+        default="",
+        description=(
+            "Custom full API endpoint URL for this model. When set, "
+            "overrides the provider's base_url for this model "
+            "(e.g. https://api.example.com/v1/images/generations)."
+        ),
+    )
 
 
 class ModelConfigRequest(BaseModel):
@@ -146,6 +154,14 @@ class ModelConfigRequest(BaseModel):
         description=(
             "Per-model generation parameters in JSON format. "
             "These override provider-level generate_kwargs."
+        ),
+    )
+    endpoint_url: Optional[str] = Field(
+        default=None,
+        description=(
+            "Custom full API endpoint URL for this model. "
+            "Overrides the provider's base_url (e.g. "
+            "https://api.example.com/v1/images/generations)."
         ),
     )
 
@@ -487,6 +503,7 @@ async def add_model_endpoint(
                 supports_video=body.supports_video,
                 probe_source=body.probe_source,
                 is_free=body.is_free,
+                endpoint_url=body.endpoint_url or "",
             ),
         )  # Validate provider exists and add model
     except (ValueError, AppBaseException) as exc:
@@ -568,14 +585,17 @@ async def configure_model(
     """Update per-model generate_kwargs that override provider-level
     settings."""
     try:
+        config: dict[str, Any] = {
+            "generate_kwargs": body.generate_kwargs,
+            "max_tokens": body.max_tokens,
+            "max_input_length": body.max_input_length,
+        }
+        if body.endpoint_url is not None:
+            config["endpoint_url"] = body.endpoint_url
         provider_info = await manager.update_model_config(
             provider_id=provider_id,
             model_id=model_id,
-            config={
-                "generate_kwargs": body.generate_kwargs,
-                "max_tokens": body.max_tokens,
-                "max_input_length": body.max_input_length,
-            },
+            config=config,
         )
     except (ValueError, AppBaseException) as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

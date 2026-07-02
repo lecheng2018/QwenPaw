@@ -170,6 +170,12 @@ class OpenAIProvider(Provider):
 
         from .openai_chat_model_compat import OpenAIChatModelCompat
 
+        # Resolve per-model endpoint_url override.
+        model_info = self.get_model_info(model_id)
+        model_endpoint_url = (
+            model_info.endpoint_url if model_info else ""
+        )
+
         credential = OpenAICredential(
             id=f"qwenpaw-{self.id}",
             api_key=self.api_key,
@@ -210,6 +216,7 @@ class OpenAIProvider(Provider):
             formatter=_CappingOpenAIFormatter(
                 max_bytes=self.max_inline_media_bytes,
             ),
+            endpoint_url=model_endpoint_url,
         )
 
     async def probe_model_multimodal(

@@ -576,12 +576,15 @@ class OpenAIChatModelCompat(OpenAIChatModel):
     """OpenAIChatModel with robust parsing for malformed tool-call chunks
     and transparent ``extra_content`` (Gemini thought_signature) relay.
 
-    Accepts two extra constructor kwargs that ``OpenAIChatModel`` does not:
+    Accepts extra constructor kwargs that ``OpenAIChatModel`` does not:
 
     * ``default_headers`` — injected as ``extra_headers`` on every API call
       (used for DashScope tracking headers, etc.).
     * ``extra_generate_kwargs`` — merged into every ``_call_api`` invocation
       (provider-level ``generate_kwargs`` that don't map to ``Parameters``).
+    * ``endpoint_url`` — when set, calls this full URL directly instead of
+      the provider's ``base_url + /chat/completions`` (for custom model
+      providers with non-standard API paths).
     """
 
     def __init__(
@@ -589,10 +592,12 @@ class OpenAIChatModelCompat(OpenAIChatModel):
         *,
         default_headers: dict[str, str] | None = None,
         extra_generate_kwargs: dict[str, Any] | None = None,
+        endpoint_url: str = "",
         **kwargs: Any,
     ) -> None:
         self._default_headers = default_headers
         self._extra_generate_kwargs = extra_generate_kwargs or {}
+        self._endpoint_url = endpoint_url
         super().__init__(**kwargs)
 
     async def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -626,13 +631,204 @@ class OpenAIChatModelCompat(OpenAIChatModel):
         if self._default_headers:
             existing = merged.get("extra_headers") or {}
             merged["extra_headers"] = {**self._default_headers, **existing}
-        return await super()._call_api(
+
+        if not self._endpoint_url:
+            return await super()._call_api(
+                model_name,
+                messages,
+                tools,
+                tool_choice,
+                **merged,
+            )
+
+        return await self._call_api_with_url(
             model_name,
             messages,
             tools,
             tool_choice,
             **merged,
         )
+
+    async def _call_api_with_url(
+        self,
+        model_name: str,
+        messages: Any,
+        tools: list[dict] | None = None,
+        tool_choice: Any | None = None,
+        **generate_kwargs: Any,
+    ) -> Any:
+        """Make API call to a custom full endpoint URL using raw httpx.
+
+        This bypasses the OpenAI library's hardcoded ``/chat/completions``
+        path so models with non-standard API paths (e.g. images/generations)
+        work with the same request/response format.
+        """
+        import httpx
+        from datetime import datetime
+        from openai.types.chat import (
+            ChatCompletion,
+        )
+
+        formatted_messages = await self.formatter.format(messages)
+
+        body: dict[str, Any] = {
+            "model": model_name,
+            "messages": formatted_messages,
+            "stream": self.stream,
+        }
+
+        if self.parameters.max_tokens is not None:
+            body["max_tokens"] = self.parameters.max_tokens
+        if self.parameters.temperature is not None:
+            body["temperature"] = self.parameters.temperature
+        if self.parameters.top_p is not None:
+            body["top_p"] = self.parameters.top_p
+        if (
+            self.parameters.thinking_enable
+            and self.parameters.reasoning_effort
+        ):
+            body["reasoning_effort"] = self.parameters.reasoning_effort
+        if self.parameters.voice is not None:
+            body["audio"] = {
+                "voice": self.parameters.voice,
+                "format": "pcm16",
+            }
+            body["modalities"] = ["text", "audio"]
+        if self.extra_body is not None:
+            body["extra_body"] = dict(self.extra_body)
+
+        if self.stream:
+            body["stream_options"] = {"include_usage": True}
+
+        fmt_tools, fmt_tool_choice = self._format_tools(tools, tool_choice)
+        if fmt_tools:
+            body["tools"] = fmt_tools
+            if not self.parameters.parallel_tool_calls:
+                body["parallel_tool_calls"] = False
+        if fmt_tool_choice is not None:
+            body["tool_choice"] = fmt_tool_choice
+
+        extra_headers = dict(generate_kwargs.get("extra_headers") or {})
+        api_key = self.credential.api_key.get_secret_value()
+        extra_headers.setdefault("Authorization", f"Bearer {api_key}")
+
+        audio_fmt = "wav"
+        audio_cfg = body.get("audio")
+        if isinstance(audio_cfg, dict):
+            audio_fmt = audio_cfg.get("format", "wav")
+
+        start_dt = datetime.now()
+
+        # Streaming path: the generator is lazy (consumed by the caller),
+        # so the httpx client must be owned by the stream wrapper to stay
+        # alive for the full iteration lifecycle.
+        if self.stream:
+            return await self._call_api_with_url_streaming(
+                body, extra_headers, start_dt,
+            )
+
+        # Non-streaming: create a short-lived client, make a single request.
+        async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
+            resp = await client.post(
+                self._endpoint_url,
+                json=body,
+                headers=extra_headers,
+            )
+            resp.raise_for_status()
+            chat_completion = ChatCompletion.model_validate(resp.json())
+            return self._parse_completion_response(
+                start_dt,
+                chat_completion,
+                audio_fmt,
+            )
+
+    async def _call_api_with_url_streaming(
+        self,
+        body: dict[str, Any],
+        headers: dict[str, str],
+        start_dt: datetime,
+    ) -> Any:
+        """Streaming variant of ``_call_api_with_url``.
+
+        Parses the SSE response and feeds ``ChatCompletionChunk`` objects
+        into the existing stream-parsing pipeline.
+        """
+        import httpx
+        from openai.types.chat import ChatCompletionChunk
+
+        class _ChunkStream:
+            """Minimal async context manager + iterator that wraps parsed
+            SSE chunks so ``_parse_stream_response`` can consume them with
+            ``async with``.
+
+            Owns its own ``httpx.AsyncClient`` to keep it alive across the
+            lazy generator lifecycle."""
+
+            def __init__(
+                self,
+                endpoint_url: str,
+                req_body: dict[str, Any],
+                req_headers: dict[str, str],
+            ):
+                self._endpoint_url = endpoint_url
+                self._body = req_body
+                self._headers = req_headers
+                self._client: httpx.AsyncClient | None = None
+                self._gen: AsyncGenerator[ChatCompletionChunk, None] | None = (
+                    None
+                )
+
+            async def __aenter__(self) -> "_ChunkStream":
+                self._client = httpx.AsyncClient(
+                    timeout=httpx.Timeout(300.0),
+                )
+                self._gen = self._iter_chunks()
+                return self
+
+            async def __aexit__(self, *args: Any) -> None:
+                if self._client is not None:
+                    await self._client.aclose()
+                    self._client = None
+                self._gen = None
+
+            async def __aiter__(self) -> AsyncGenerator[ChatCompletionChunk, None]:  # type: ignore[return]
+                if self._gen is None:
+                    return
+                async for chunk in self._gen:
+                    yield chunk
+
+            async def _iter_chunks(
+                self,
+            ) -> AsyncGenerator[ChatCompletionChunk, None]:
+                if self._client is None:
+                    return
+                async with self._client.stream(
+                    "POST",
+                    self._endpoint_url,
+                    json=self._body,
+                    headers=self._headers,
+                ) as resp:
+                    resp.raise_for_status()
+                    async for line in resp.aiter_lines():
+                        if not line.startswith("data: "):
+                            continue
+                        payload = line[6:].strip()
+                        if payload == "[DONE]":
+                            break
+                        if not payload:
+                            continue
+                        try:
+                            yield ChatCompletionChunk.model_validate_json(
+                                payload,
+                            )
+                        except Exception as exc:
+                            logger.debug(
+                                "Skipping unparseable SSE chunk: %s",
+                                exc,
+                            )
+
+        stream = _ChunkStream(self._endpoint_url, body, headers)
+        return self._parse_stream_response(start_dt, stream)
 
     def _format_tools(
         self,

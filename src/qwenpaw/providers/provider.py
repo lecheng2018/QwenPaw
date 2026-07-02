@@ -18,6 +18,15 @@ if TYPE_CHECKING:
 class ModelInfo(BaseModel):
     id: str = Field(..., description="Model identifier used in API calls")
     name: str = Field(..., description="Human-readable model name")
+    endpoint_url: str = Field(
+        default="",
+        description=(
+            "Custom full API endpoint URL for this model. "
+            "When set, overrides the provider's base_url for this model "
+            "(e.g. https://api.example.com/v1/images/generations). "
+            "Leave empty to use the provider's default base_url + path."
+        ),
+    )
     supports_multimodal: bool | None = Field(
         default=None,
         description="Whether this model supports multimodal input "
@@ -376,6 +385,11 @@ class Provider(ProviderInfo, ABC):
                     and config["max_input_length"] is not None
                 ):
                     model.max_input_length = int(config["max_input_length"])
+                if (
+                    "endpoint_url" in config
+                    and config["endpoint_url"] is not None
+                ):
+                    model.endpoint_url = str(config["endpoint_url"])
                 return True
         return False
 
