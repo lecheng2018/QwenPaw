@@ -1,6 +1,7 @@
 export interface ModelInfo {
   id: string;
   name: string;
+  endpoint_url?: string;
   supports_multimodal: boolean | null;
   supports_image: boolean | null;
   supports_video: boolean | null;
@@ -105,6 +106,7 @@ export interface CreateCustomProviderRequest {
 export interface AddModelRequest {
   id: string;
   name: string;
+  endpoint_url?: string;
   is_free?: boolean;
   supports_multimodal?: boolean | null;
   supports_image?: boolean | null;
@@ -116,6 +118,7 @@ export interface ModelConfigRequest {
   max_tokens?: number;
   max_input_length?: number;
   generate_kwargs?: Record<string, unknown>;
+  endpoint_url?: string;
 }
 
 export interface LocalModelConfig {

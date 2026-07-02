@@ -74,6 +74,9 @@ function ModelConfigEditor({
   const [maxInputLength, setMaxInputLength] = useState<number | null>(
     model.max_input_length ?? 131072,
   );
+  const [endpointUrl, setEndpointUrl] = useState(
+    model.endpoint_url ?? "",
+  );
 
   const initialText = useMemo(
     () =>
@@ -90,8 +93,9 @@ function ModelConfigEditor({
     setText(initialText);
     setMaxTokens(model.max_tokens ?? 8192);
     setMaxInputLength(model.max_input_length ?? 131072);
+    setEndpointUrl(model.endpoint_url ?? "");
     setDirty(false);
-  }, [initialText, model.max_tokens, model.max_input_length]);
+  }, [initialText, model.max_tokens, model.max_input_length, model.endpoint_url]);
 
   const effectiveMaxTokens = maxTokens ?? 8192;
   const effectiveMaxInputLength = maxInputLength ?? 131072;
@@ -110,6 +114,14 @@ function ModelConfigEditor({
     setMaxInputLength(val);
     setDirty(true);
   }, []);
+
+  const handleEndpointUrlChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setEndpointUrl(e.target.value);
+      setDirty(true);
+    },
+    [],
+  );
 
   const handleSave = async () => {
     const trimmed = text.trim();
@@ -134,6 +146,7 @@ function ModelConfigEditor({
         max_tokens: effectiveMaxTokens,
         max_input_length: effectiveMaxInputLength,
         generate_kwargs: parsed,
+        endpoint_url: endpointUrl || undefined,
       });
       message.success(t("models.modelConfigSaved", { name: model.name }));
       setDirty(false);
@@ -205,6 +218,31 @@ function ModelConfigEditor({
               "模型上下文窗口大小，控制上下文压缩阈值（≥1000）",
             )}
           </div>
+        </div>
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <div style={labelStyle}>
+          {t("models.endpointUrlLabel", "API 端点 URL")}
+        </div>
+        <Input
+          value={endpointUrl}
+          onChange={handleEndpointUrlChange}
+          placeholder={t(
+            "models.endpointUrlPlaceholder",
+            "留空则使用提供商默认地址",
+          )}
+        />
+        <div
+          style={{
+            fontSize: 11,
+            color: isDark ? "rgba(255,255,255,0.35)" : "#999",
+            marginTop: 2,
+          }}
+        >
+          {t(
+            "models.endpointUrlHint",
+            "自定义 API 端点（如 https://api.example.com/v1/images/generations）。覆盖提供商 base_url",
+          )}
         </div>
       </div>
       <div
@@ -385,8 +423,10 @@ export function RemoteModelManageModal({
   // For built-in providers only extra_models are deletable.
   const extraModelIds = new Set((provider.extra_models || []).map((m) => m.id));
 
-  const doAddModel = async (id: string, name: string) => {
-    await api.addModel(provider.id, { id, name });
+  const doAddModel = async (id: string, name: string, endpointUrl?: string) => {
+    const body: Parameters<typeof api.addModel>[1] = { id, name };
+    if (endpointUrl) body.endpoint_url = endpointUrl;
+    await api.addModel(provider.id, body);
     message.success(t("models.modelAdded", { name }));
     form.resetFields();
     setAdding(false);
@@ -398,6 +438,7 @@ export function RemoteModelManageModal({
       const values = await form.validateFields();
       const id = values.id.trim();
       const name = values.name?.trim() || id;
+      const endpointUrl = values.endpoint_url?.trim() || "";
       const modelAlreadyExists = [
         ...(provider.models ?? []),
         ...(provider.extra_models ?? []),
@@ -430,7 +471,7 @@ export function RemoteModelManageModal({
           onOk: async () => {
             setSaving(true);
             try {
-              await doAddModel(id, name);
+              await doAddModel(id, name, endpointUrl);
             } catch (error) {
               const errMsg =
                 error instanceof Error
@@ -446,7 +487,7 @@ export function RemoteModelManageModal({
       }
 
       // Step 2: If test passed, add the model
-      await doAddModel(id, name);
+      await doAddModel(id, name, endpointUrl);
     } catch (error) {
       if (error && typeof error === "object" && "errorFields" in error) return;
       const errMsg =
@@ -942,6 +983,18 @@ export function RemoteModelManageModal({
                 style={{ marginBottom: 12 }}
               >
                 <Input placeholder={t("models.modelNamePlaceholder")} />
+              </Form.Item>
+              <Form.Item
+                name="endpoint_url"
+                label={t("models.endpointUrlLabel", "API 端点 URL")}
+                style={{ marginBottom: 12 }}
+              >
+                <Input
+                  placeholder={t(
+                    "models.endpointUrlPlaceholder",
+                    "留空则使用提供商默认地址（如 https://.../v1/chat/completions）",
+                  )}
+                />
               </Form.Item>
               <div
                 style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}
