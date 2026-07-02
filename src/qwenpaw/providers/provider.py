@@ -106,6 +106,15 @@ class ProviderInfo(BaseModel):
     id: str = Field(..., description="Provider identifier")
     name: str = Field(..., description="Human-readable provider name")
     base_url: str = Field(default="", description="API base URL")
+    endpoint_url: str = Field(
+        default="",
+        description=(
+            "Custom full API endpoint URL for this provider. "
+            "When set, overrides base_url for all models under this provider "
+            "(e.g. https://api.example.com/v1/images/generations). "
+            "Leave empty to use base_url + default path."
+        ),
+    )
     api_key: str = Field(default="", description="API key for authentication")
     chat_model: str = Field(
         default="OpenAIChatModel",
@@ -265,6 +274,12 @@ class Provider(ProviderInfo, ABC):
             and config["base_url"] is not None
         ):
             self.base_url = str(config["base_url"]).strip()
+        if (
+            not self.freeze_url
+            and "endpoint_url" in config
+            and config["endpoint_url"] is not None
+        ):
+            self.endpoint_url = str(config["endpoint_url"])
         if "api_key" in config and config["api_key"] is not None:
             self.api_key = str(config["api_key"]).strip()
         if (

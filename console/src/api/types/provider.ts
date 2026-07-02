@@ -17,6 +17,7 @@ export interface ProviderInfo {
   name: string;
   api_key_prefix: string;
   chat_model: string;
+  endpoint_url?: string;
   /** Built-in models (for built-in providers) or all models (for custom). */
   models: ModelInfo[];
   /** User-added models (deletable). Only populated for built-in providers. */
@@ -67,6 +68,7 @@ export interface ProviderConfigRequest {
   generate_kwargs?: Record<string, unknown>;
   custom_headers?: Record<string, string>;
   auth_mode?: "api_key" | "auth_token";
+  endpoint_url?: string;
 }
 
 export interface ModelSlotConfig {

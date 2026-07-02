@@ -170,10 +170,15 @@ class OpenAIProvider(Provider):
 
         from .openai_chat_model_compat import OpenAIChatModelCompat
 
-        # Resolve per-model endpoint_url override.
+        # Resolve endpoint_url: model-level overrides provider-level.
         model_info = self.get_model_info(model_id)
         model_endpoint_url = (
-            model_info.endpoint_url if model_info else ""
+            model_info.endpoint_url
+            if model_info and model_info.endpoint_url
+            else ""
+        )
+        effective_endpoint_url = (
+            model_endpoint_url or self.endpoint_url
         )
 
         credential = OpenAICredential(
@@ -216,7 +221,7 @@ class OpenAIProvider(Provider):
             formatter=_CappingOpenAIFormatter(
                 max_bytes=self.max_inline_media_bytes,
             ),
-            endpoint_url=model_endpoint_url,
+            endpoint_url=effective_endpoint_url,
         )
 
     async def probe_model_multimodal(

@@ -984,18 +984,6 @@ export function RemoteModelManageModal({
               >
                 <Input placeholder={t("models.modelNamePlaceholder")} />
               </Form.Item>
-              <Form.Item
-                name="endpoint_url"
-                label={t("models.endpointUrlLabel", "API 端点 URL")}
-                style={{ marginBottom: 12 }}
-              >
-                <Input
-                  placeholder={t(
-                    "models.endpointUrlPlaceholder",
-                    "留空则使用提供商默认地址（如 https://.../v1/chat/completions）",
-                  )}
-                />
-              </Form.Item>
               <div
                 style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}
               >
