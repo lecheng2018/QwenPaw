@@ -56,15 +56,16 @@ $QWENPAW_SECRET_DIR/                       # 默认 ~/.qwenpaw.secret
 
 **路径相关：**
 
-| 变量                       | 默认值              | 说明                                                                                        |
-| -------------------------- | ------------------- | ------------------------------------------------------------------------------------------- |
-| `QWENPAW_WORKING_DIR`      | `~/.qwenpaw`        | 工作目录根路径                                                                              |
-| `QWENPAW_SECRET_DIR`       | `~/.qwenpaw.secret` | 敏感数据目录（存放 `providers.json` 和 `envs.json`）。Docker 中默认为 `/app/working.secret` |
-| `QWENPAW_CONFIG_FILE`      | `config.json`       | 配置文件名（相对于 `QWENPAW_WORKING_DIR`）                                                  |
-| `QWENPAW_HEARTBEAT_FILE`   | `HEARTBEAT.md`      | 心跳文件名（相对于智能体工作区）                                                            |
-| `QWENPAW_JOBS_FILE`        | `jobs.json`         | 定时任务文件名（相对于智能体工作区）                                                        |
-| `QWENPAW_CHATS_FILE`       | `chats.json`        | 对话历史文件名（相对于智能体工作区）                                                        |
-| `QWENPAW_TOKEN_USAGE_FILE` | `token_usage.json`  | Token 消耗记录文件名（相对于智能体工作区）                                                  |
+| 变量                       | 默认值              | 说明                                                                                                                                                                                                                           |
+| -------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `QWENPAW_WORKING_DIR`      | `~/.qwenpaw`        | 工作目录根路径                                                                                                                                                                                                                 |
+| `QWENPAW_SECRET_DIR`       | `~/.qwenpaw.secret` | 敏感数据目录（存放 `providers.json` 和 `envs.json`）。Docker 中默认为 `/app/working.secret`                                                                                                                                    |
+| `QWENPAW_KEYRING_ACCOUNT`  | _(自动)_            | 主密钥在操作系统钥匙串中的账户名。默认为 `master_key`；当设置了 `QWENPAW_WORKING_DIR`/`QWENPAW_SECRET_DIR`（例如开发检出）时会自动派生为每个安装独立的账户名，使开发安装不会覆盖稳定安装的密钥。可显式设置以命名某个配置档案。 |
+| `QWENPAW_CONFIG_FILE`      | `config.json`       | 配置文件名（相对于 `QWENPAW_WORKING_DIR`）                                                                                                                                                                                     |
+| `QWENPAW_HEARTBEAT_FILE`   | `HEARTBEAT.md`      | 心跳文件名（相对于智能体工作区）                                                                                                                                                                                               |
+| `QWENPAW_JOBS_FILE`        | `jobs.json`         | 定时任务文件名（相对于智能体工作区）                                                                                                                                                                                           |
+| `QWENPAW_CHATS_FILE`       | `chats.json`        | 对话历史文件名（相对于智能体工作区）                                                                                                                                                                                           |
+| `QWENPAW_TOKEN_USAGE_FILE` | `token_usage.json`  | Token 消耗记录文件名（相对于智能体工作区）                                                                                                                                                                                     |
 
 **其他配置：**
 
@@ -212,6 +213,16 @@ $QWENPAW_SECRET_DIR/                       # 默认 ~/.qwenpaw.secret
     "llm_backoff_base": 1.0,
     "llm_backoff_cap": 10.0,
     "max_input_length": 131072
+  },
+  "llm_routing": {
+    "enabled": false,
+    "mode": "local_first",
+    "local": { "provider_id": "ollama", "model": "qwen3" },
+    "cloud": { "provider_id": "dashscope", "model": "qwen-max" },
+    "fallback": {
+      "enabled": false,
+      "models": [{ "provider_id": "openai", "model": "gpt-4o-mini" }]
+    }
   },
   "active_model": null,
   "language": "zh",
@@ -407,6 +418,26 @@ MCP（模型上下文协议）允许智能体连接外部服务（如 Filesystem
 | `max_batch_size`   | int    | `10`       | 批处理的最大批量大小                                |
 
 这些配置也可以在控制台的 **智能体 → 运行配置** 页面中修改。保存后会对新的 LLM 请求生效，不需要重启服务。
+
+---
+
+#### `llm_routing.fallback` — LLM 模型回退
+
+模型回退默认关闭。启用后，主模型遇到限流、超时、连接中断等可重试 LLM/provider 瞬时错误，并且当前模型的自动重试已用尽时，QwenPaw 会按 `fallback.models` 顺序尝试备用模型。
+
+| 字段               | 类型  | 默认值  | 说明                                            |
+| ------------------ | ----- | ------- | ----------------------------------------------- |
+| `fallback.enabled` | bool  | `false` | 是否启用模型回退                                |
+| `fallback.models`  | array | `[]`    | 备用模型列表，元素包含 `provider_id` 和 `model` |
+
+重要规则：
+
+- retry 是同一模型内的自动重试；fallback 只发生在该模型 retry 用尽之后。
+- 每个备用模型同样会使用现有 retry、限流、Token 记录和 ProviderManager。
+- 流式响应仅允许在首个 chunk 输出前回退；一旦已有内容输出，就不会静默切换模型。
+- 错误日志只记录 provider、model、错误类型和状态码，不记录 prompt、message、API Key 或异常正文。
+
+也可以在控制台 **智能体 → 运行配置 → LLM 模型回退** 页面配置。
 
 ---
 
